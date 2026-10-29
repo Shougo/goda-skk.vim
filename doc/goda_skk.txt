@@ -1,0 +1,379 @@
+*goda_skk.txt*	SKK input method for Vim/Neovim on goda.vim
+
+License: MIT license
+
+CONTENTS                                                   *goda-skk-contents*
+
+Introduction		|goda-skk-introduction|
+Install			|goda-skk-install|
+Usage			|goda-skk-usage|
+Mappings		|goda-skk-mappings|
+Functions		|goda-skk-functions|
+Variables		|goda-skk-variables|
+Events			|goda-skk-events|
+Highlight		|goda-skk-highlight|
+State popup		|goda-skk-state-popup|
+Configuration		|goda-skk-config|
+Dictionaries		|goda-skk-dictionaries|
+Key functions		|goda-skk-key-functions|
+Differences from skkeleton	|goda-skk-skkeleton|
+Credits			|goda-skk-credits|
+
+==============================================================================
+INTRODUCTION                                           *goda-skk-introduction*
+
+goda-skk.vim is an SKK input method built on goda.vim (|goda.txt|).  It is
+the successor of skkeleton: the same way of typing, with the input method
+written in Go and configured in Go, a small program you own.
+
+The Vim script side only maps keys and shows what the plugin answers: for
+every key, the plugin returns the keys to type (backspaces over the old
+pre-edit, what was confirmed, and the new pre-edit), and Vim types them.
+
+==============================================================================
+INSTALL                                                     *goda-skk-install*
+
+Requirements: Go 1.26 or later; Vim 9.1 or later (|+job| |+channel|
+|+popupwin|) or Neovim 0.10 or later; goda.vim; an SKK dictionary (SKK-JISYO.L, say).
+
+Install `Shougo/goda.vim` and `Shougo/goda-skk.vim` with your plugin manager,
+then make your configuration, a Go module of your own (keep it in your
+dotfiles): >sh
+
+	mkdir -p ~/.vim/goda-skk && cd ~/.vim/goda-skk
+	# Neovim: ~/.config/nvim/goda-skk
+	cp /path/to/goda-skk.vim/examples/config/main.go .
+	go mod init goda-skk-config
+	go get github.com/Shougo/goda-skk.vim@latest
+	go mod tidy
+<
+Build it (again after every change of the configuration, and after
+updating goda-skk.vim with `go get -u`): >vim
+
+	:call goda_skk#build()
+<
+The binary goes to a cache directory (|g:goda_skk#binary|), and is started
+with the first key.
+
+==============================================================================
+USAGE                                                         *goda-skk-usage*
+
+Map a key to enable the input method, in insert mode, on the command line
+and in terminal jobs: >vim
+
+	map! <C-j> <Plug>(goda-skk-enable)
+	tmap <C-j> <Plug>(goda-skk-enable)
+	" From Normal mode: insert mode, enabled.
+	nmap <C-j> i<Plug>(goda-skk-enable)
+<
+Then, in insert mode, <C-j> enables it and you type as in SKK: "aiueo"
+types あいうえお, an upper-case letter starts a conversion ("Kanji" types
+▽かんじ), <Space> converts (▼漢字) and goes to the next candidate, "x" back
+to the previous one, <C-j> confirms, and an upper-case letter in the reading
+starts the okurigana ("OkuRi" converts to ▼送り).  After the fourth
+candidate, the rest is listed in a popup: choose with "asdfjkl".
+
+"q" switches between hiragana and katakana, <C-q> to half-width katakana,
+"L" to full-width alphanumerics, "/" to abbrev (a reading in ASCII), and "l"
+disables the input method; <C-j> enables it again.  <Esc> confirms what is
+typed, disables it and leaves insert mode; leaving insert mode or the window
+otherwise disables it too.
+
+A conversion confirmed is learned in the user dictionary, and comes first
+the next time.  The function kakuteiUndo (|goda-skk-key-functions|; map a
+key to it in Keymaps) takes the last conversion back to choosing its
+candidate, also after typing on along the line: the cursor goes back to the
+conversion, and returns after another candidate is confirmed.
+
+In a terminal job, the keys are sent to the job: a backspace is <C-h>,
+which shells take as one; what the job shows is not checked.
+
+==============================================================================
+MAPPINGS                                                   *goda-skk-mappings*
+
+<Plug>(goda-skk-enable)                             *<Plug>(goda-skk-enable)*
+		Enable the input method.  While it is enabled and something is
+		typed, confirm it (as <C-j> does).
+
+<Plug>(goda-skk-disable)                           *<Plug>(goda-skk-disable)*
+		Confirm what is typed and disable the input method.
+
+<Plug>(goda-skk-toggle)                             *<Plug>(goda-skk-toggle)*
+		Enable or disable the input method.
+
+They are |:map!| and |:tmap| mappings: insert mode, the command line and
+terminal jobs.  A key mapped to one of them keeps doing that while the input
+method is enabled.
+
+==============================================================================
+FUNCTIONS                                                 *goda-skk-functions*
+
+goda_skk#build()                                            *goda_skk#build()*
+		Build the configuration, |g:goda_skk#config_dir|, into
+		|g:goda_skk#binary| with "go build", and stop a running binary.
+
+goda_skk#enable()                                          *goda_skk#enable()*
+goda_skk#disable()                                        *goda_skk#disable()*
+goda_skk#toggle()                                          *goda_skk#toggle()*
+		As the mappings above.  Use them in <Cmd> mappings.
+
+goda_skk#handle({func} [, {keys}])                         *goda_skk#handle()*
+		Run {func}, a key function (|goda-skk-key-functions|) or
+		"handleKey" (what the key does), for each of {keys}, a list of
+		keys in lower-case notation ("a", "<c-j>", "<space>").  For
+		example: >vim
+		inoremap <C-l> <Cmd>call goda_skk#handle('zenkaku')<CR>
+<
+goda_skk#mode()                                              *goda_skk#mode()*
+		The mode: "hira", "kata", "hankata", "zenkaku" or "abbrev", and
+		"" when disabled.  For the status line.
+
+goda_skk#is_enabled()                                  *goda_skk#is_enabled()*
+		Whether the input method is enabled.
+
+==============================================================================
+VARIABLES                                                 *goda-skk-variables*
+
+g:goda_skk#config_dir                                  *g:goda_skk#config_dir*
+		The configuration module.
+		Default: "~/.vim/goda-skk", Neovim: stdpath('config') .
+		'/goda-skk'
+
+g:goda_skk#binary                                          *g:goda_skk#binary*
+		The binary built from the configuration.
+		Default: "goda-skk" in the "goda-skk" directory of the cache
+		directory (Neovim: stdpath('cache'); Vim: $XDG_CACHE_HOME/vim
+		or ~/.cache/vim, %LOCALAPPDATA%/vim on MS-Windows).
+
+g:goda_skk#mapped_keys                                *g:goda_skk#mapped_keys*
+		Keys to map while the input method is enabled, in
+		|key-notation|, besides those the configuration uses: the
+		letters, digits and symbols, the keys of Keymaps and the first
+		keys of the rules of the kana tables.  Not needed usually.
+
+g:goda_skk#enabled                                        *g:goda_skk#enabled*
+g:goda_skk#mode                                              *g:goda_skk#mode*
+g:goda_skk#state                                            *g:goda_skk#state*
+		Read only: whether it is enabled, the mode, and the state:
+		{"phase": "input", "input:okurinasi" (a reading),
+		"input:okuriari" (okurigana), "henkan" (a candidate) or
+		"escape", "henkanFeed": the reading}.
+
+==============================================================================
+EVENTS                                                       *goda-skk-events*
+
+|User| autocommands:
+
+goda-skk-enable-pre, goda-skk-enable-post
+		Before and after enabling: the buffer mappings are set in
+		between.
+goda-skk-disable-pre, goda-skk-disable-post
+		Before and after disabling.
+goda-skk-mode-changed
+		The mode changed (|g:goda_skk#mode|).
+goda-skk-handled
+		After the keys of a key were typed.
+
+For example, to redraw the status line: >vim
+
+	autocmd User goda-skk-mode-changed redrawstatus
+<
+A key the input method should leave to another plugin is mapped again in
+goda-skk-enable-post (the buffer mappings are set then): >vim
+
+	autocmd User goda-skk-enable-post
+	      \ inoremap <buffer> <nowait> . <Cmd>call s:dot()<CR>
+	function s:dot() abort
+	  if pum#visible()
+	    call pum#map#confirm()
+	  else
+	    call goda_skk#handle('handleKey', ['.'])
+	  endif
+	endfunction
+<
+==============================================================================
+HIGHLIGHT                                                 *goda-skk-highlight*
+
+The pre-edit in insert mode is highlighted with these groups, when they are
+defined: >vim
+
+	highlight GodaSkkHenkan cterm=underline gui=underline
+	highlight GodaSkkHenkanSelect cterm=underline,reverse gui=underline,reverse
+<
+GodaSkkHenkan		A reading (▽かんじ).
+GodaSkkHenkanSelect	A candidate (▼漢字).
+
+With them, the markers can go: `MarkerHenkan: new("")` (|goda-skk-config|).
+
+==============================================================================
+STATE POPUP                                             *goda-skk-state-popup*
+
+A popup by the cursor in insert mode that shows the mode and the phase.
+
+goda_skk#state_popup#config({config})            *goda_skk#state_popup#config()*
+		{config} is a dictionary:
+		labels	{phase: {mode: label}}: the phases and modes of
+			|g:goda_skk#state| and |g:goda_skk#mode|.  The label
+			"latin" (outside the phases) is shown while the input
+			method is disabled.
+		opts	The options of |popup_create()| (Vim) or
+			nvim_open_win() (Neovim); by default under the cursor.
+
+goda_skk#state_popup#enable()                    *goda_skk#state_popup#enable()*
+goda_skk#state_popup#disable()                  *goda_skk#state_popup#disable()*
+		Show the popup, or not.
+
+For example: >vim
+
+	call goda_skk#state_popup#config(#{
+	      \   labels: {
+	      \     'input': #{hira: 'あ', kata: 'ア', hankata: 'ｶﾅ', zenkaku: 'Ａ'},
+	      \     'input:okurinasi': #{hira: '▽', kata: '▽', hankata: '▽', abbrev: 'ab'},
+	      \     'input:okuriari': #{hira: '▽', kata: '▽', hankata: '▽'},
+	      \     'henkan': #{hira: '▼', kata: '▼', hankata: '▼', abbrev: 'ab'},
+	      \   },
+	      \   opts: has('nvim') ? #{} : #{highlight: 'WildMenu'},
+	      \ })
+	call goda_skk#state_popup#enable()
+<
+==============================================================================
+CONFIGURATION                                                *goda-skk-config*
+
+The configuration is the skk.Config passed to skk.Main in your main.go: >go
+
+	skk.Main(skk.Config{
+		Dictionaries: []skk.Dictionary{
+			skk.NewJisyo("~/.skk/SKK-JISYO.L", ""),
+		},
+		EggLikeNewline: true,
+	})
+<
+The fields (`go doc github.com/Shougo/goda-skk.vim/skk.Config` has them
+all; their zero values are the defaults):
+
+KanaTable		The romaji table (skk.RomTable).  Add rules with
+			skk.RomTable.With(skk.Rule{From: "z ", Kana: "　"});
+			a Rule with only From removes one.  A Rule can leave
+			a Feed ("tt" types "っ" and leaves "t") or run a key
+			function (Func).
+ZenkakuTable		The table of the full-width mode (skk.ZenTable).
+Dictionaries		|goda-skk-dictionaries|.
+UserDictionary		The file conversions are learned in
+			("~/.goda-skk-jisyo"; "-" for none).
+Keymaps			Key functions by state: {"input": {"<c-l>":
+			"zenkaku"}, "henkan": {...}}; "" removes a key.
+MarkerHenkan		"▽"; new("") for none (|goda-skk-highlight|).
+MarkerHenkanSelect	"▼"; new("") for none.
+ShowCandidatesCount	Candidates shown one by one before the popup (4).
+SelectCandidateKeys	The keys of the popup ("asdfjkl").
+LowercaseMap		The key a shifted key starts a conversion with
+			(keyboards where Shift gives another character).
+AcceptIllegalResult	Keep a romaji that is no kana ("q" alone).
+EggLikeNewline		<CR> while converting confirms without a new line.
+ImmediatelyCancel	<C-g> while choosing cancels at once (true).
+ImmediatelyOkuriConvert	Convert as soon as the okurigana is "っ" (true).
+KeepMode		Enabling starts in the last mode.
+KeepState		Leaving insert mode with <Esc> enables again in the
+			next insert mode.
+RegisterConvertResult	Learn conversions to katakana ("q" on a reading).
+SetUndoPoint		A conversion confirmed is a step of undo (true).
+
+The fields that default to true, and the markers, are pointers:
+`ImmediatelyCancel: new(false)`, `MarkerHenkan: new("")`.
+
+skkeleton's register_kanatable() and register_keymap() are written as: >go
+
+	KanaTable: skk.RomTable.With(
+		skk.Rule{From: "jj", Func: "escape"},
+		skk.Rule{From: "~", Kana: "〜"},
+	),
+	Keymaps: map[string]map[string]string{
+		"input": {"<C-z>": "kakuteiUndo"},
+	},
+<
+The keys they use are mapped by themselves (no |g:goda_skk#mapped_keys|).
+
+==============================================================================
+DICTIONARIES                                           *goda-skk-dictionaries*
+
+Dictionaries are looked up in order, after the user dictionary; their
+candidates are joined without duplicates.
+
+skk.NewJisyo({path}, {encoding})
+		A dictionary file in the SKK format, read in the background
+		when the binary starts.  {encoding}: "utf-8", "euc-jp", or ""
+		to detect them.
+
+A dictionary is any Go value with the methods of skk.Dictionary: >go
+
+	Lookup(ctx context.Context, typ skk.HenkanType, word string) ([]string, error)
+	Complete(ctx context.Context, prefix string) ([]skk.Entry, error)
+<
+Readings with digits look up "#" in the dictionaries (the reading "1かい"
+finds "#かい /#1回/#3回/"), and #0-#3, #5, #8 and #9 convert the number.
+
+The user dictionary is a file in the SKK format, in UTF-8, read again when
+it changed.  "X" on a candidate removes it from the user dictionary (after
+asking).
+
+==============================================================================
+KEY FUNCTIONS                                         *goda-skk-key-functions*
+
+The functions keys run, for |goda_skk#handle()|, Keymaps and the Func of a
+kana table rule:
+
+kakutei		Confirm (<C-j>); with nothing typed, back to hiragana.
+kakuteiUndo	Take the last conversion back to choosing (not mapped by
+		default).
+newline		Confirm and type a new line (<CR>).
+cancel		Cancel the conversion (<C-g>).
+purgeCandidate	Remove the candidate from the user dictionary ("X").
+disable		Confirm and disable ("l").
+escape		Confirm, disable and leave insert mode (<Esc>).
+henkanFirst	Start the conversion (<Space> on a reading).
+henkanForward	The next candidate (<Space>).
+henkanBackward	The previous candidate ("x").
+henkanInput	A key while choosing: confirm and type it.
+henkanPoint	Start a reading (";").
+suffix		Confirm and start a reading for a suffix (">").
+prefix		A reading as a prefix (">" at the end of a reading).
+kanaInput	Type the key through the kana table.
+kakuteiFeed	Turn the romaji typed into kana ("n" into ん).
+deleteChar	Delete a character (<BS>).
+abbrev		The abbrev mode ("/").
+hirakana	Hiragana.
+katakana	Katakana, or convert the reading to katakana ("q").
+hankata		Half-width katakana (<C-q>).
+zenkaku		Full-width alphanumerics ("L").
+
+Default Keymaps (the other keys run kanaInput, and henkanInput while
+choosing):
+
+	input:	<BS> <C-h> deleteChar, <C-g> cancel, <CR> newline,
+		<Esc> escape, <C-j> kakutei, <C-q> hankata, > prefix
+	henkan:	<C-g> cancel, <CR> newline, <C-j> kakutei,
+		<Space> henkanForward, x henkanBackward, X purgeCandidate,
+		> suffix
+
+==============================================================================
+DIFFERENCES FROM SKKELETON                                *goda-skk-skkeleton*
+
+- The configuration is Go (skk.Config), not skkeleton#config().  Dictionaries
+  are Go values; the kana table is skk.RomTable.With(...).
+- <C-g> keeps the katakana mode.
+- skkeleton-henkan-highlight and skkeleton-state-popup are built in
+  (|goda-skk-highlight|, |goda-skk-state-popup|).
+- The completion popup of pum.vim is found by itself (no
+  register_completion_backend()).
+- Not yet: registering a word when no candidate is found, completion
+  (a goda-cmp.vim source), skkserv and Google Japanese Input.
+
+==============================================================================
+CREDITS                                                     *goda-skk-credits*
+
+goda-skk.vim is a port of skkeleton by kuuote
+(https://github.com/vim-skk/skkeleton).  Its kana tables and much of the
+logic come from skkeleton, under the zlib license; see NOTICE.
+
+==============================================================================
+vim:tw=78:ts=8:noet:ft=help:norl:

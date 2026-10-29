@@ -1,0 +1,77 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  test:
+    name: go ${{ matrix.go }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        # The oldest Go the module supports, and the newest.
+        go: ['1.26', 'stable']
+    steps:
+      - uses: actions/checkout@v7
+      # The end-to-end tests run in every editor they find.
+      - name: Install Vim
+        uses: rhysd/action-setup-vim@v1
+        with:
+          version: stable
+      - name: Install Neovim
+        uses: rhysd/action-setup-vim@v1
+        with:
+          neovim: true
+          version: stable
+      # After the editors: installing them may put a directory with the
+      # runner's own, older Go first in PATH.
+      - uses: actions/setup-go@v7
+        with:
+          go-version: ${{ matrix.go }}
+      - run: go version && vim --version | head -n 3 && nvim --version | head -n 1
+      - run: gofmt -l . | tee /dev/stderr | (! read)
+      - run: go vet ./...
+      - run: go test -race ./...
+
+  # Windows and macOS: the same tests, end-to-end ones included.
+  other:
+    name: ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [windows-latest, macos-latest]
+    defaults:
+      run:
+        shell: bash
+    steps:
+      # Keep the line endings of the repository.
+      - run: git config --global core.autocrlf false
+      - uses: actions/checkout@v7
+      - name: Install Vim
+        id: vim
+        uses: rhysd/action-setup-vim@v1
+        with:
+          version: stable
+      - name: Install Neovim
+        id: nvim
+        uses: rhysd/action-setup-vim@v1
+        with:
+          neovim: true
+          version: stable
+      - uses: actions/setup-go@v7
+        with:
+          go-version: stable
+      # The editors that were installed: on MS-Windows, Git Bash's PATH has
+      # MSYS2's Vim first.
+      - run: go version && "$GODA_VIM" --version | head -n 3 && "$GODA_NVIM" --version | head -n 1
+        env:
+          GODA_VIM: ${{ steps.vim.outputs.executable }}
+          GODA_NVIM: ${{ steps.nvim.outputs.executable }}
+      - run: go vet ./...
+      - run: go test ./...
+        env:
+          GODA_VIM: ${{ steps.vim.outputs.executable }}
+          GODA_NVIM: ${{ steps.nvim.outputs.executable }}
