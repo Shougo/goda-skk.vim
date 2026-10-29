@@ -3,7 +3,7 @@
 // The tables come from skkeleton (https://github.com/vim-skk/skkeleton),
 // Copyright (c) 2021 kuuote, under the zlib License (see NOTICE).
 
-package skk
+package engine
 
 // romHira is the table "rom": romaji to hiragana.
 var romHira = []Rule{

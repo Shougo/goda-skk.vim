@@ -1,6 +1,6 @@
 " goda-skk.vim: SKK input for Vim/Neovim on goda.vim.
 "
-" The input method is the "skk" plugin of a goda.vim binary (package skk,
+" The input method is the "skk" plugin of a goda.vim binary (package engine,
 " built from the user's configuration). While it is enabled, the keys of
 " g:goda_skk#mapped_keys are mapped in the buffer; each one is sent to the
 " plugin, which answers with the keys to type: backspaces over the old
@@ -220,7 +220,7 @@ function! goda_skk#_locate_kakutei(bufnr, lnum, before, kakutei) abort
   return v:true
 endfunction
 
-" A completion (goda-skk.vim/cmp/source) replaced the pre-edit.
+" A completion (goda-skk.vim/cmp/source/...) replaced the pre-edit.
 function! goda_skk#_complete_done(phase) abort
   let g:goda_skk#state = #{phase: a:phase, henkanFeed: ''}
   let [s:popup, s:pre_edit] = [[], '']

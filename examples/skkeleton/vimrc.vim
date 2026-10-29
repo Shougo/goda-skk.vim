@@ -113,10 +113,10 @@ function s:skk_pre_cmp() abort
 
   call goda_cmp#patch_buffer(#{
         \   cmdlineSources: {
-        \     ':': ['skk', 'skk_okuri'],
-        \     '@': ['skk', 'skk_okuri'],
+        \     ':': ['skk', 'skkokuri'],
+        \     '@': ['skk', 'skkokuri'],
         \   },
-        \   sources: ['around', 'skk', 'skk_okuri', 'line'],
+        \   sources: ['around', 'skk', 'skkokuri', 'line'],
         \   sourceOptions: #{
         \     _: #{
         \       keywordPattern: '[ァ-ヮア-ンー]+',

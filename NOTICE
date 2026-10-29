@@ -1,6 +1,6 @@
 goda-skk.vim contains code derived from skkeleton
-(https://github.com/vim-skk/skkeleton): the kana tables (skk/kanadata.go)
-and the logic of the input method (skk/), ported from TypeScript to Go and
+(https://github.com/vim-skk/skkeleton): the kana tables (engine/kanadata.go)
+and the logic of the input method (engine/), ported from TypeScript to Go and
 changed. skkeleton is distributed under the following license.
 
 Copyright (c) 2021 kuuote

@@ -5,16 +5,16 @@ package main
 import (
 	"os"
 
-	"github.com/Shougo/goda-skk.vim/skk"
+	"github.com/Shougo/goda-skk.vim/engine"
 )
 
 func main() {
-	skk.Main(skk.Config{
-		Dictionaries:   []skk.Dictionary{skk.NewJisyo(os.Getenv("GODA_SKK_JISYO"), "utf-8")},
+	engine.Main(engine.Config{
+		Dictionaries:   []engine.Dictionary{engine.NewJisyo(os.Getenv("GODA_SKK_JISYO"), "utf-8")},
 		UserDictionary: os.Getenv("GODA_SKK_USER_JISYO"),
-		KanaTable: skk.RomTable.With(
-			skk.Rule{From: "jj", Func: "escape"},
-			skk.Rule{From: "~", Kana: "〜"},
+		KanaTable: engine.RomTable.With(
+			engine.Rule{From: "jj", Func: "escape"},
+			engine.Rule{From: "~", Kana: "〜"},
 		),
 		Keymaps: map[string]map[string]string{
 			"input": {"<C-z>": "kakuteiUndo"},

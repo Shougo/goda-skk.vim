@@ -10,13 +10,14 @@ import (
 	"github.com/Shougo/goda-cmp.vim/ext/ui/native"
 	"github.com/Shougo/goda.vim/host"
 
-	"github.com/Shougo/goda-skk.vim/cmp/source"
-	"github.com/Shougo/goda-skk.vim/skk"
+	"github.com/Shougo/goda-skk.vim/cmp/source/skk"
+	"github.com/Shougo/goda-skk.vim/cmp/source/skkokuri"
+	"github.com/Shougo/goda-skk.vim/engine"
 )
 
 func main() {
-	p, err := skk.New(skk.Config{
-		Dictionaries:   []skk.Dictionary{skk.NewJisyo(os.Getenv("GODA_SKK_JISYO"), "utf-8")},
+	p, err := engine.New(engine.Config{
+		Dictionaries:   []engine.Dictionary{engine.NewJisyo(os.Getenv("GODA_SKK_JISYO"), "utf-8")},
 		UserDictionary: os.Getenv("GODA_SKK_USER_JISYO"),
 		Keymaps: map[string]map[string]string{
 			"input": {"<C-z>": "kakuteiUndo"},
@@ -27,20 +28,20 @@ func main() {
 	}
 	b := cmp.New()
 	b.AddUI(native.New())
-	b.AddSource(source.New(p))
-	b.AddSource(source.NewOkuri(p))
+	b.AddSource(skk.New(p))
+	b.AddSource(skkokuri.New(p))
 	none := []string{}
 	b.PatchGlobal(cmp.Config{
 		UI:      "native",
-		Sources: []string{source.Name, source.NameOkuri},
+		Sources: []string{"skk", "skkokuri"},
 		SourceOptions: map[string]cmp.SourceOption{
 			"_": {Matchers: none, Sorters: none},
 		},
 		AutoCompleteDelay: new(0),
 	})
-	engine, err := b.Plugin()
+	cmpPlugin, err := b.Plugin()
 	if err != nil {
 		log.Fatal(err)
 	}
-	host.Main(engine, p)
+	host.Main(cmpPlugin, p)
 }

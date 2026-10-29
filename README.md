@@ -11,7 +11,8 @@ dictionary and dictionary files, kakuteiUndo, insert mode, the command line
 and terminal jobs work; the highlight of the pre-edit and the state popup
 (skkeleton-henkan-highlight and skkeleton-state-popup) are built in, and
 [goda-cmp.vim](https://github.com/Shougo/goda-cmp.vim) completes readings
-(`cmp/source`, the ddc.vim sources of skkeleton). skkserv and Google
+(the sources `cmp/source/skk` and `cmp/source/skkokuri`, the ddc.vim
+sources of skkeleton). skkserv and Google
 Japanese Input are to come.
 
 A skkeleton configuration translated, with the completion of goda-cmp.vim,
@@ -38,12 +39,12 @@ The configuration:
 ```go
 package main
 
-import "github.com/Shougo/goda-skk.vim/skk"
+import "github.com/Shougo/goda-skk.vim/engine"
 
 func main() {
-	skk.Main(skk.Config{
-		Dictionaries: []skk.Dictionary{
-			skk.NewJisyo("~/.skk/SKK-JISYO.L", ""),
+	engine.Main(engine.Config{
+		Dictionaries: []engine.Dictionary{
+			engine.NewJisyo("~/.skk/SKK-JISYO.L", ""),
 		},
 		EggLikeNewline: true,
 	})

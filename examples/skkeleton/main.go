@@ -17,8 +17,9 @@ import (
 	"github.com/Shougo/goda-cmp.vim/ext/ui/pum"
 	"github.com/Shougo/goda.vim/host"
 
-	"github.com/Shougo/goda-skk.vim/cmp/source"
-	"github.com/Shougo/goda-skk.vim/skk"
+	"github.com/Shougo/goda-skk.vim/cmp/source/skk"
+	"github.com/Shougo/goda-skk.vim/cmp/source/skkokuri"
+	"github.com/Shougo/goda-skk.vim/engine"
 )
 
 func main() {
@@ -26,9 +27,9 @@ func main() {
 	if runtime.GOOS == "windows" {
 		jisyo = "~/.config/SKK-JISYO.L"
 	}
-	p, err := skk.New(skk.Config{
+	p, err := engine.New(engine.Config{
 		// globalDictionaries
-		Dictionaries: []skk.Dictionary{skk.NewJisyo(jisyo, "")},
+		Dictionaries: []engine.Dictionary{engine.NewJisyo(jisyo, "")},
 		// No markers: the highlights GodaSkkHenkan and
 		// GodaSkkHenkanSelect show the pre-edit (vimrc.vim).
 		MarkerHenkan:          new(""),
@@ -37,9 +38,9 @@ func main() {
 		RegisterConvertResult: true,
 
 		// register_kanatable('rom', {'jj': 'escape', '~': ['〜', '']})
-		KanaTable: skk.RomTable.With(
-			skk.Rule{From: "jj", Func: "escape"},
-			skk.Rule{From: "~", Kana: "〜"},
+		KanaTable: engine.RomTable.With(
+			engine.Rule{From: "jj", Func: "escape"},
+			engine.Rule{From: "~", Kana: "〜"},
 		),
 		// register_keymap('input', '<C-z>', 'kakuteiUndo'); <C-z> is
 		// mapped by itself.
@@ -56,8 +57,8 @@ func main() {
 	b.AddSource(around.New(around.Params{}))
 	b.AddSource(line.New(line.Params{}))
 	// The ddc.vim sources skkeleton and skkeleton_okuri.
-	b.AddSource(source.New(p))
-	b.AddSource(source.NewOkuri(p))
+	b.AddSource(skk.New(p))
+	b.AddSource(skkokuri.New(p))
 	b.AddFilter(matcherhead.New(matcherhead.Params{}))
 	b.AddFilter(sorterrank.New())
 	none := []string{}
@@ -70,15 +71,15 @@ func main() {
 				Sorters:  []string{"sorterrank"},
 			},
 			// In the order of the input method, all of them.
-			source.Name:      {Mark: "skk", Matchers: none, Sorters: none},
-			source.NameOkuri: {Mark: "skk", Matchers: none, Sorters: none},
+			"skk":      {Mark: "skk", Matchers: none, Sorters: none},
+			"skkokuri": {Mark: "skk", Matchers: none, Sorters: none},
 		},
 	})
 
-	engine, err := b.Plugin()
+	cmpPlugin, err := b.Plugin()
 	if err != nil {
 		log.Fatal(err)
 	}
 	// goda-cmp.vim and the input method, in one binary.
-	host.Main(engine, p)
+	host.Main(cmpPlugin, p)
 }

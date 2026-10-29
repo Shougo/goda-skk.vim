@@ -1,4 +1,4 @@
-package skk
+package engine
 
 import (
 	"cmp"
@@ -10,9 +10,9 @@ import (
 	"github.com/Shougo/goda.vim/sdk"
 )
 
-// The completion of readings, for a completion source (package
-// github.com/Shougo/goda-skk.vim/cmp/source): the source runs in the same
-// binary as the plugin, and asks it.
+// The completion of readings, for the completion sources (packages
+// github.com/Shougo/goda-skk.vim/cmp/source/...): they run in the same
+// binary as the plugin, and ask it.
 
 // Reading is the reading being typed (▽): Kana, and Feed the romaji not yet
 // kana. PreEdit is how it shows before the cursor; VimMode is "i" or "c".

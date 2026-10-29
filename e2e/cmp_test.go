@@ -12,7 +12,7 @@ import (
 )
 
 // The completion of goda-cmp.vim with the sources of goda-skk.vim
-// (cmp/source), typed in a pseudo terminal.
+// (cmp/source/...), typed in a pseudo terminal.
 func TestCompletion(t *testing.T) {
 	if runtime.GOOS == "windows" {
 		t.Skip("no pseudo terminal")

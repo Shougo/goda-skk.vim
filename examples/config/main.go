@@ -3,21 +3,21 @@
 // the result.
 package main
 
-import "github.com/Shougo/goda-skk.vim/skk"
+import "github.com/Shougo/goda-skk.vim/engine"
 
 func main() {
-	skk.Main(skk.Config{
+	engine.Main(engine.Config{
 		// Dictionary files, looked up in order after the user dictionary.
 		// The encoding "" detects UTF-8 or EUC-JP.
-		Dictionaries: []skk.Dictionary{
-			skk.NewJisyo("~/.skk/SKK-JISYO.L", ""),
+		Dictionaries: []engine.Dictionary{
+			engine.NewJisyo("~/.skk/SKK-JISYO.L", ""),
 		},
 		// Where conversions are learned (the default).
 		UserDictionary: "~/.goda-skk-jisyo",
 
 		// Rules added to the romaji table: "z " types a full-width space.
-		KanaTable: skk.RomTable.With(
-			skk.Rule{From: "z ", Kana: "　"},
+		KanaTable: engine.RomTable.With(
+			engine.Rule{From: "z ", Kana: "\u3000"},
 		),
 
 		// <CR> while converting confirms, without a new line.

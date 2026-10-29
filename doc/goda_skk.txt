@@ -242,24 +242,24 @@ For example: >vim
 ==============================================================================
 CONFIGURATION                                                *goda-skk-config*
 
-The configuration is the skk.Config passed to skk.Main in your main.go: >go
+The configuration is the engine.Config passed to engine.Main in your main.go: >go
 
-	skk.Main(skk.Config{
-		Dictionaries: []skk.Dictionary{
-			skk.NewJisyo("~/.skk/SKK-JISYO.L", ""),
+	engine.Main(engine.Config{
+		Dictionaries: []engine.Dictionary{
+			engine.NewJisyo("~/.skk/SKK-JISYO.L", ""),
 		},
 		EggLikeNewline: true,
 	})
 <
-The fields (`go doc github.com/Shougo/goda-skk.vim/skk.Config` has them
+The fields (`go doc github.com/Shougo/goda-skk.vim/engine.Config` has them
 all; their zero values are the defaults):
 
-KanaTable		The romaji table (skk.RomTable).  Add rules with
-			skk.RomTable.With(skk.Rule{From: "z ", Kana: "　"});
+KanaTable		The romaji table (engine.RomTable).  Add rules with
+			engine.RomTable.With(engine.Rule{From: "z ", Kana: "　"});
 			a Rule with only From removes one.  A Rule can leave
 			a Feed ("tt" types "っ" and leaves "t") or run a key
 			function (Func).
-ZenkakuTable		The table of the full-width mode (skk.ZenTable).
+ZenkakuTable		The table of the full-width mode (engine.ZenTable).
 Dictionaries		|goda-skk-dictionaries|.
 UserDictionary		The file conversions are learned in
 			("~/.goda-skk-jisyo"; "-" for none).
@@ -286,9 +286,9 @@ The fields that default to true, and the markers, are pointers:
 
 skkeleton's register_kanatable() and register_keymap() are written as: >go
 
-	KanaTable: skk.RomTable.With(
-		skk.Rule{From: "jj", Func: "escape"},
-		skk.Rule{From: "~", Kana: "〜"},
+	KanaTable: engine.RomTable.With(
+		engine.Rule{From: "jj", Func: "escape"},
+		engine.Rule{From: "~", Kana: "〜"},
 	),
 	Keymaps: map[string]map[string]string{
 		"input": {"<C-z>": "kakuteiUndo"},
@@ -302,15 +302,15 @@ DICTIONARIES                                           *goda-skk-dictionaries*
 Dictionaries are looked up in order, after the user dictionary; their
 candidates are joined without duplicates.
 
-skk.NewJisyo({path}, {encoding})
+engine.NewJisyo({path}, {encoding})
 		A dictionary file in the SKK format, read in the background
 		when the binary starts.  {encoding}: "utf-8", "euc-jp", or ""
 		to detect them.
 
-A dictionary is any Go value with the methods of skk.Dictionary: >go
+A dictionary is any Go value with the methods of engine.Dictionary: >go
 
-	Lookup(ctx context.Context, typ skk.HenkanType, word string) ([]string, error)
-	Complete(ctx context.Context, prefix string) ([]skk.Entry, error)
+	Lookup(ctx context.Context, typ engine.HenkanType, word string) ([]string, error)
+	Complete(ctx context.Context, prefix string) ([]engine.Entry, error)
 <
 Readings with digits look up "#" in the dictionaries (the reading "1かい"
 finds "#かい /#1回/#3回/"), and #0-#3, #5, #8 and #9 convert the number.
@@ -322,43 +322,55 @@ asking).
 ==============================================================================
 COMPLETION                                               *goda-skk-completion*
 
-The package github.com/Shougo/goda-skk.vim/cmp/source has goda-cmp.vim
-sources that complete the reading being typed (▽):
+The packages github.com/Shougo/goda-skk.vim/cmp/source/skk and
+.../cmp/source/skkokuri are goda-cmp.vim sources that complete the reading
+being typed (▽):
 
 "skk"		The candidates of the readings that start with it (▽かん:
-		漢字, 感じ, 考え, ...), those learned in this Vim first.
-"skk_okuri"	Its candidates with okurigana (▽おくり: 送り, 贈り).
+		漢字, 感じ, 考え, ...), those learned in this Vim first; as
+		skkeleton's ddc.vim source skkeleton.
+"skkokuri"	Its candidates with okurigana (▽おくり: 送り, 贈り); as
+		skkeleton_okuri.
 
 A completion accepted is learned, and kakuteiUndo takes it back.
 
 They ask the input method directly, so it is in the binary of goda-cmp.vim:
-the configuration of goda-cmp.vim makes the plugin too, and serves both: >go
+the configuration of goda-cmp.vim makes the plugin too (package engine),
+and serves both: >go
 
-	p, err := skk.New(skk.Config{
-		Dictionaries: []skk.Dictionary{skk.NewJisyo("~/.skk/SKK-JISYO.L", "")},
+	import (
+		"github.com/Shougo/goda-skk.vim/cmp/source/skk"
+		"github.com/Shougo/goda-skk.vim/cmp/source/skkokuri"
+		"github.com/Shougo/goda-skk.vim/engine"
+	)
+
+	p, err := engine.New(engine.Config{
+		Dictionaries: []engine.Dictionary{
+			engine.NewJisyo("~/.skk/SKK-JISYO.L", ""),
+		},
 	})
 	if err != nil {
 		log.Fatal(err)
 	}
 	b := cmp.New()
 	b.AddUI(pum.New())
-	b.AddSource(source.New(p))
-	b.AddSource(source.NewOkuri(p))
+	b.AddSource(skk.New(p))
+	b.AddSource(skkokuri.New(p))
 	none := []string{}
 	b.PatchGlobal(cmp.Config{
 		UI:      "pum",
 		Sources: []string{"around"},
 		SourceOptions: map[string]cmp.SourceOption{
 			// Ordered already, and not starting with what is typed.
-			source.Name:      {Mark: "skk", Matchers: none, Sorters: none},
-			source.NameOkuri: {Mark: "skk", Matchers: none, Sorters: none},
+			"skk":      {Mark: "skk", Matchers: none, Sorters: none},
+			"skkokuri": {Mark: "skk", Matchers: none, Sorters: none},
 		},
 	})
-	engine, err := b.Plugin()
+	cmpPlugin, err := b.Plugin()
 	if err != nil {
 		log.Fatal(err)
 	}
-	host.Main(engine, p)
+	host.Main(cmpPlugin, p)
 <
 Build it with goda_cmp#build(), and point |g:goda_skk#binary| at its binary
 (goda-skk.vim uses it when goda-cmp.vim has not started it yet): >vim
@@ -371,7 +383,7 @@ Use the sources while the input method is enabled: >vim
 
 	autocmd User goda-skk-enable-pre
 	      \   let b:prev_config = goda_cmp#get_buffer()
-	      \ | call goda_cmp#patch_buffer(#{sources: ['skk', 'skk_okuri']})
+	      \ | call goda_cmp#patch_buffer(#{sources: ['skk', 'skkokuri']})
 	autocmd User goda-skk-disable-post
 	      \   call goda_cmp#set_buffer(get(b:, 'prev_config', {}))
 <
@@ -419,15 +431,15 @@ choosing):
 ==============================================================================
 DIFFERENCES FROM SKKELETON                                *goda-skk-skkeleton*
 
-- The configuration is Go (skk.Config), not skkeleton#config().  Dictionaries
-  are Go values; the kana table is skk.RomTable.With(...).
+- The configuration is Go (engine.Config), not skkeleton#config().  Dictionaries
+  are Go values; the kana table is engine.RomTable.With(...).
 - <C-g> keeps the katakana mode.
 - skkeleton-henkan-highlight and skkeleton-state-popup are built in
   (|goda-skk-highlight|, |goda-skk-state-popup|).
 - The completion popup of pum.vim is found by itself (no
   register_completion_backend()).
-- The ddc.vim sources skkeleton and skkeleton_okuri are goda-cmp.vim
-  sources (|goda-skk-completion|).
+- The ddc.vim sources skkeleton and skkeleton_okuri are the goda-cmp.vim
+  sources skk and skkokuri (|goda-skk-completion|).
 - Not yet: skkserv and Google Japanese Input.
 
 ==============================================================================
