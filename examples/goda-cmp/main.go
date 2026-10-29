@@ -1,8 +1,9 @@
-// Command skkeleton is the configuration of a skkeleton user, translated:
-// skkeleton#config(), register_kanatable() and register_keymap(), and the
-// ddc.vim sources skkeleton and skkeleton_okuri, as goda-cmp.vim sources.
-// The input method and goda-cmp.vim are one binary (build it with
-// goda_cmp#build()); its Vim script is in vimrc.vim.
+// Command goda-cmp is a goda-cmp.vim configuration with goda-skk.vim: the
+// input method and its completion sources, in one binary (build it with
+// goda_cmp#build()); the Vim script is in vimrc.vim. It is translated from
+// the configuration of a skkeleton user: skkeleton#config(),
+// register_kanatable() and register_keymap(), and the ddc.vim sources
+// skkeleton and skkeleton_okuri.
 package main
 
 import (

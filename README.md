@@ -15,8 +15,8 @@ and terminal jobs work; the highlight of the pre-edit and the state popup
 sources of skkeleton). skkserv and Google
 Japanese Input are to come.
 
-A skkeleton configuration translated, with the completion of goda-cmp.vim,
-is in [examples/skkeleton](examples/skkeleton).
+A configuration with the completion of goda-cmp.vim, translated from a
+skkeleton one, is in [examples/goda-cmp](examples/goda-cmp).
 
 ## Try it
 

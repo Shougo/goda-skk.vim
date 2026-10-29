@@ -1,5 +1,5 @@
-" The Vim script of a skkeleton user, translated (see main.go for
-" skkeleton#config() and the completion). skkeleton-state-popup and
+" The Vim script of goda-skk.vim with goda-cmp.vim, translated from that of a
+" skkeleton user (see main.go for skkeleton#config() and the completion). skkeleton-state-popup and
 " skkeleton-henkan-highlight are built in; pum.vim is found by itself.
 
 " The input method is in the binary of goda-cmp.vim (main.go is the

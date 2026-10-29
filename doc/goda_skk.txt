@@ -385,7 +385,7 @@ Use the sources while the input method is enabled: >vim
 	autocmd User goda-skk-disable-post
 	      \   call goda_cmp#set_buffer(get(b:, 'prev_config', {}))
 <
-examples/skkeleton has a whole configuration.
+examples/goda-cmp has a whole configuration, translated from skkeleton's.
 
 ==============================================================================
 KEY FUNCTIONS                                         *goda-skk-key-functions*
