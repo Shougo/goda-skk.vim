@@ -61,7 +61,6 @@ func main() {
 	b.AddSource(skkokuri.New(p))
 	b.AddFilter(matcherhead.New(matcherhead.Params{}))
 	b.AddFilter(sorterrank.New())
-	none := []string{}
 	b.PatchGlobal(cmp.Config{
 		UI:      "pum",
 		Sources: []string{"around"},
@@ -71,8 +70,8 @@ func main() {
 				Sorters:  []string{"sorterrank"},
 			},
 			// In the order of the input method, all of them.
-			"skk":      {Mark: "skk", Matchers: none, Sorters: none},
-			"skkokuri": {Mark: "skk", Matchers: none, Sorters: none},
+			"skk":      {Mark: "skk", Matchers: []string{}, Sorters: []string{}},
+			"skkokuri": {Mark: "skk", Matchers: []string{}, Sorters: []string{}},
 		},
 	})
 

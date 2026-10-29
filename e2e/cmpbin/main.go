@@ -30,12 +30,11 @@ func main() {
 	b.AddUI(native.New())
 	b.AddSource(skk.New(p))
 	b.AddSource(skkokuri.New(p))
-	none := []string{}
 	b.PatchGlobal(cmp.Config{
 		UI:      "native",
 		Sources: []string{"skk", "skkokuri"},
 		SourceOptions: map[string]cmp.SourceOption{
-			"_": {Matchers: none, Sorters: none},
+			"_": {Matchers: []string{}, Sorters: []string{}},
 		},
 		AutoCompleteDelay: new(0),
 	})
