@@ -22,7 +22,10 @@
 //
 // The items replace the pre-edit, marker included. Give the source no
 // matchers and no sorters: the items are ordered already, and do not start
-// with what is typed.
+// with what is typed. The source says where the reading starts
+// (cmp.CompletePositioner), whatever the keywordPattern.
+//
+//	"skk": {Matchers: []string{}, Sorters: []string{}},
 package skk
 
 import (
@@ -47,6 +50,15 @@ type source struct{ p *engine.Plugin }
 func New(p *engine.Plugin) cmp.Source { return source{p} }
 
 func (source) Name() string { return "skk" }
+
+// CompletePosition is where the pre-edit starts, -1 without a reading.
+func (s source) CompletePosition(_ context.Context, _ sdk.Host, c *cmp.Context) int {
+	r, ok := s.p.Reading()
+	if !ok || r.PreEdit == "" || r.VimMode != c.Mode || !strings.HasSuffix(c.Input, r.PreEdit) {
+		return -1
+	}
+	return len(c.Input) - len(r.PreEdit)
+}
 
 func (s source) Gather(ctx context.Context, _ sdk.Host, c *cmp.Context) (cmp.Gathered, error) {
 	r, ok := s.p.Reading()
@@ -82,6 +94,7 @@ func (s source) OnCompleteDone(ctx context.Context, h sdk.Host, a cmp.DoneArgs) 
 }
 
 var (
-	_ cmp.Source        = source{}
-	_ cmp.CompleteDoner = source{}
+	_ cmp.Source             = source{}
+	_ cmp.CompleteDoner      = source{}
+	_ cmp.CompletePositioner = source{}
 )

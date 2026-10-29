@@ -332,7 +332,9 @@ being typed (▽):
 "skkokuri"	Its candidates with okurigana (▽おくり: 送り, 贈り); as
 		skkeleton_okuri.
 
-A completion accepted is learned, and kakuteiUndo takes it back.
+A completion accepted is learned, and kakuteiUndo takes it back.  The
+sources say where the reading starts (goda-cmp.vim's CompletePositioner), so
+the keywordPattern does not matter to them.
 
 They ask the input method directly, so it is in the binary of goda-cmp.vim:
 the configuration of goda-cmp.vim makes the plugin too (package engine),

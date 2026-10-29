@@ -28,6 +28,15 @@ func New(p *engine.Plugin) cmp.Source { return source{p} }
 
 func (source) Name() string { return "skkokuri" }
 
+// CompletePosition is where the pre-edit starts, -1 without a reading.
+func (s source) CompletePosition(_ context.Context, _ sdk.Host, c *cmp.Context) int {
+	r, ok := s.p.Reading()
+	if !ok || r.PreEdit == "" || r.Feed != "" || r.VimMode != c.Mode || !strings.HasSuffix(c.Input, r.PreEdit) {
+		return -1
+	}
+	return len(c.Input) - len(r.PreEdit)
+}
+
 func (s source) Gather(ctx context.Context, _ sdk.Host, c *cmp.Context) (cmp.Gathered, error) {
 	r, ok := s.p.Reading()
 	// The reading changes with every key: ask again each time.
@@ -59,6 +68,7 @@ func (s source) OnCompleteDone(ctx context.Context, h sdk.Host, a cmp.DoneArgs) 
 }
 
 var (
-	_ cmp.Source        = source{}
-	_ cmp.CompleteDoner = source{}
+	_ cmp.Source             = source{}
+	_ cmp.CompleteDoner      = source{}
+	_ cmp.CompletePositioner = source{}
 )

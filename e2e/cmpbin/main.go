@@ -34,7 +34,9 @@ func main() {
 		UI:      "native",
 		Sources: []string{"skk", "skkokuri"},
 		SourceOptions: map[string]cmp.SourceOption{
-			"_": {Matchers: []string{}, Sorters: []string{}},
+			// As examples/skkeleton/vimrc.vim patches it: katakana only, which
+			// the reading does not match (CompletePosition says where it is).
+			"_": {Matchers: []string{}, Sorters: []string{}, KeywordPattern: "[ァ-ヮア-ンー]+"},
 		},
 		AutoCompleteDelay: new(0),
 	})
