@@ -128,11 +128,13 @@ function! s:terminal() abort
         \ . "\<C-\>\<C-n>", 'xt')
   call s:check('terminal mode', s:tmode, ['t', 'hira'])
   call s:check('terminal disabled', g:goda_skk#enabled, v:false)
-  for _ in range(100)
+  " The job echoes it when it gets to it: wait for that (5 seconds at
+  " most, for a loaded machine).
+  for _ in range(250)
     if match(getbufline(buf, 1, '$'), 'あいう') >= 0
       break
     endif
-    sleep 20m
+    call term_wait(buf, 20)
   endfor
   call s:check('terminal', match(getbufline(buf, 1, '$'), 'あいう') >= 0, v:true)
   bwipeout!
