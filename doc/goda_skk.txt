@@ -338,7 +338,8 @@ the keywordPattern does not matter to them.
 
 They ask the input method directly, so it is in the binary of goda-cmp.vim:
 the configuration of goda-cmp.vim makes the plugin too (package engine),
-and serves both: >go
+and serves both with `b.Main(p)` (with an error in the configuration of
+goda-cmp.vim, the input method still works): >go
 
 	import (
 		"github.com/Shougo/goda-skk.vim/cmp/source/skk"
@@ -367,11 +368,7 @@ and serves both: >go
 			"skkokuri": {Mark: "skk", Matchers: []string{}, Sorters: []string{}},
 		},
 	})
-	cmpPlugin, err := b.Plugin()
-	if err != nil {
-		log.Fatal(err)
-	}
-	host.Main(cmpPlugin, p)
+	b.Main(p)
 <
 Build it with goda_cmp#build(), and point |g:goda_skk#binary| at its binary
 (goda-skk.vim uses it when goda-cmp.vim has not started it yet): >vim

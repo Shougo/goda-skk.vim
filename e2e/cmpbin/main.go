@@ -8,7 +8,6 @@ import (
 
 	"github.com/Shougo/goda-cmp.vim/cmp"
 	"github.com/Shougo/goda-cmp.vim/ext/ui/native"
-	"github.com/Shougo/goda.vim/host"
 
 	"github.com/Shougo/goda-skk.vim/cmp/source/skk"
 	"github.com/Shougo/goda-skk.vim/cmp/source/skkokuri"
@@ -40,9 +39,5 @@ func main() {
 		},
 		AutoCompleteDelay: new(0),
 	})
-	cmpPlugin, err := b.Plugin()
-	if err != nil {
-		log.Fatal(err)
-	}
-	host.Main(cmpPlugin, p)
+	b.Main(p)
 }

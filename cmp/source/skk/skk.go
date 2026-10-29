@@ -17,8 +17,7 @@
 //	b.AddSource(skk.New(p))
 //	b.AddSource(skkokuri.New(p))
 //	...
-//	cmpPlugin, err := b.Plugin()
-//	host.Main(cmpPlugin, p)
+//	b.Main(p) // goda-cmp.vim and the input method, in one binary
 //
 // The items replace the pre-edit, marker included. Give the source no
 // matchers and no sorters: the items are ordered already, and do not start
