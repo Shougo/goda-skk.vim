@@ -30,6 +30,23 @@ func editor(t *testing.T, env, name string) string {
 // setup builds the binary and returns the environment of the scenario.
 func setup(t *testing.T) []string {
 	t.Helper()
+	return setupBinary(t, "./testbin")
+}
+
+// resultFile is where the scenario writes its result.
+func resultFile(env []string) string {
+	for _, e := range env {
+		if v, ok := strings.CutPrefix(e, "GODA_SKK_RESULT="); ok {
+			return v
+		}
+	}
+	return ""
+}
+
+// setupBinary builds the binary of pkg and returns the environment of a
+// scenario.
+func setupBinary(t *testing.T, pkg string) []string {
+	t.Helper()
 	if testing.Short() {
 		t.Skip("-short")
 	}
@@ -38,7 +55,7 @@ func setup(t *testing.T) []string {
 	if runtime.GOOS == "windows" {
 		bin += ".exe"
 	}
-	if out, err := exec.Command("go", "build", "-o", bin, "./testbin").CombinedOutput(); err != nil {
+	if out, err := exec.Command("go", "build", "-o", bin, pkg).CombinedOutput(); err != nil {
 		t.Fatalf("go build: %v\n%s", err, out)
 	}
 	// The Vim script of goda.vim: the module this module requires.
@@ -72,13 +89,7 @@ func run(t *testing.T, env []string, name string, args ...string) {
 	cmd := exec.CommandContext(ctx, name, args...)
 	cmd.Env = env
 	out, err := cmd.CombinedOutput()
-	var result string
-	for _, e := range env {
-		if v, ok := strings.CutPrefix(e, "GODA_SKK_RESULT="); ok {
-			result = v
-		}
-	}
-	b, rerr := os.ReadFile(result)
+	b, rerr := os.ReadFile(resultFile(env))
 	if rerr != nil {
 		t.Fatalf("no result (%v): %v\n%s", err, rerr, out)
 	}

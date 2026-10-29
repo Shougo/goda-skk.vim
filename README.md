@@ -6,15 +6,16 @@ SKK input method for Vim and Neovim, built on
 with the input method written in Go and configured in Go — a small program
 you own.
 
-Status: early. Conversion with okurigana, the user dictionary and
-dictionary files, kakuteiUndo, insert mode, the command line and terminal
-jobs work, and the highlight of the pre-edit and the state popup
-(skkeleton-henkan-highlight and skkeleton-state-popup) are built in.
-Registering words, completion (a goda-cmp.vim source), skkserv and Google
+Status: early. Conversion with okurigana, registering words, the user
+dictionary and dictionary files, kakuteiUndo, insert mode, the command line
+and terminal jobs work; the highlight of the pre-edit and the state popup
+(skkeleton-henkan-highlight and skkeleton-state-popup) are built in, and
+[goda-cmp.vim](https://github.com/Shougo/goda-cmp.vim) completes readings
+(`cmp/source`, the ddc.vim sources of skkeleton). skkserv and Google
 Japanese Input are to come.
 
-A skkeleton configuration translated is in
-[examples/skkeleton](examples/skkeleton).
+A skkeleton configuration translated, with the completion of goda-cmp.vim,
+is in [examples/skkeleton](examples/skkeleton).
 
 ## Try it
 

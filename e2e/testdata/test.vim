@@ -63,6 +63,16 @@ function! s:run() abort
   call s:check('user dictionary', readfile($GODA_SKK_USER_JISYO)->filter('v:val =~# "^かんじ"'),
         \ ['かんじ /関知/感じ/漢字/'])
 
+  " Registering a word, converting in the prompt; then it is learned.
+  call s:check('register', s:type("\<C-j>Mikan Kanji \<C-j>\<CR>"), ['関知'])
+  call s:check('registered', s:type("\<C-j>Mikan \<C-j>"), ['関知'])
+  call s:check('register cancelled', s:type("\<C-j>Ringo \<Esc>a"), ['りんごあ'])
+  call s:check('register <C-g>', s:type("\<C-j>Ringo \<C-g>a"), ['りんごあ'])
+  call s:check('register maps', maparg('a', 'c'), '')
+  let s:events = []
+  call s:type("\<C-j>Suika \<CR>")
+  call s:check('register events', s:events, ['enable', 'enable', 'disable', 'enable', 'disable'])
+
   " kakuteiUndo after typing on, and the cursor back at the end.
   call s:check('kakuteiUndo', s:type("\<C-j>Nihon \<C-j>aiu\<C-z> \<C-j>lx"), ['二本あいうx'])
   " Rules of the kana table.

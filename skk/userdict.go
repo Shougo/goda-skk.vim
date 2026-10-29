@@ -20,6 +20,9 @@ type UserDictionary struct {
 	j       *jisyo
 	modTime time.Time
 	logf    func(format string, args ...any)
+	// ranks are when the candidates were learned in this process, for the
+	// order of the completion.
+	ranks map[string]int64
 }
 
 // NewUserDictionary returns the user dictionary at path ("~/" is the home
@@ -67,6 +70,10 @@ func (u *UserDictionary) Register(typ HenkanType, word, candidate string) {
 	u.reload()
 	u.mu.Lock()
 	defer u.mu.Unlock()
+	if u.ranks == nil {
+		u.ranks = map[string]int64{}
+	}
+	u.ranks[candidate] = time.Now().UnixNano()
 	t := u.j.table(typ)
 	old := t[word]
 	cs := append([]string{candidate}, slices.DeleteFunc(slices.Clone(old), func(c string) bool { return c == candidate })...)
@@ -75,6 +82,13 @@ func (u *UserDictionary) Register(typ HenkanType, word, candidate string) {
 		u.j.index()
 	}
 	u.save()
+}
+
+// rank is when candidate was learned (0: not in this process).
+func (u *UserDictionary) rank(candidate string) int64 {
+	u.mu.Lock()
+	defer u.mu.Unlock()
+	return u.ranks[candidate]
 }
 
 // Purge removes candidate from the candidates of word, and writes the file.

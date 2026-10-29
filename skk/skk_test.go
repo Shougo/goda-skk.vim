@@ -65,6 +65,8 @@ type sim struct {
 	confirm int
 	// after is the text after the cursor.
 	after string
+	// register answers the prompt of registerWord.
+	register func(prompt string) string
 }
 
 func newSim(t *testing.T, cfg Config) *sim {
@@ -129,9 +131,11 @@ func (s *sim) Cmd(context.Context, string) error            { return nil }
 func (s *sim) call(fn string, keys ...string) Result {
 	s.t.Helper()
 	_, prev, lnum := s.cursorLine()
+	s.p.mu.Lock()
 	res, err := s.p.run(context.Background(), s, fn, keys, Status{
 		Mode: s.mode, PrevInput: prev, Bufnr: 1, Lnum: lnum, Selected: -1,
 	}, s.on)
+	s.p.mu.Unlock()
 	if err != nil {
 		s.t.Fatal(err)
 	}
@@ -153,6 +157,14 @@ func (s *sim) call(fn string, keys ...string) Result {
 		s.on = false
 	}
 	s.res = res
+	if res.Register != "" && fn != "registerDone" {
+		// As Vim does: ask, and tell.
+		word := ""
+		if s.register != nil {
+			word = s.register(res.Register)
+		}
+		return s.call("registerDone", word)
+	}
 	return res
 }
 
@@ -707,5 +719,47 @@ func TestMarkersAndRules(t *testing.T) {
 	if !slices.Contains(s.p.mappedKeys, "~") || !slices.Contains(s.p.mappedKeys, "<lt>") ||
 		!slices.Contains(s.p.mappedKeys, "L") || !slices.Contains(s.p.mappedKeys, "<Space>") {
 		t.Errorf("mapped keys: %v", s.p.mappedKeys)
+	}
+}
+
+func TestRegisterWord(t *testing.T) {
+	s := newSim(t, Config{})
+	// The prompt has an editor of its own: what is typed there is handled
+	// meanwhile.
+	s.register = func(prompt string) string {
+		if prompt != "[辞書登録] みかん: " {
+			t.Errorf("prompt: %q", prompt)
+		}
+		inner := &sim{t: t, p: s.p, mode: "c"}
+		inner.call("enable")
+		inner.typ("Kanji <c-j>")
+		inner.call("disable")
+		return inner.line
+	}
+	s.typ("Mikan ")
+	if s.line != "漢字" || s.res.Phase != "input" {
+		t.Errorf("register: %q %+v", s.line, s.res)
+	}
+	s.register = nil
+	s.typ("Mikan ")
+	if s.line != "漢字▼漢字" {
+		t.Errorf("learned: %q", s.line)
+	}
+	// Past the last candidate, and cancelled: back to it.
+	s.typ(" ")
+	if s.line != "漢字▼漢字" {
+		t.Errorf("cancelled: %q", s.line)
+	}
+	s.typ("<c-g>")
+	// Okurigana.
+	s.register = func(prompt string) string {
+		if prompt != "[辞書登録] たべ*る: " {
+			t.Errorf("prompt: %q", prompt)
+		}
+		return "食"
+	}
+	s.typ("TabeRu")
+	if s.line != "漢字食る" {
+		t.Errorf("okuri: %q", s.line)
 	}
 }

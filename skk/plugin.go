@@ -26,6 +26,14 @@ type Plugin struct {
 	mu       sync.Mutex
 	c        *Context
 	lastMode string
+	// outer are the contexts put aside while Vim asks for a word to
+	// register (registerWord): the keys of the prompt have their own.
+	outer []outerContext
+}
+
+type outerContext struct {
+	c        *Context
+	lastMode string
 }
 
 // New returns the plugin with the configuration, or an error for an
@@ -118,10 +126,14 @@ type Result struct {
 	Restore *cursorPoint `json:"restore"`
 	// MappedKeys are the keys to map, with Enable.
 	MappedKeys []string `json:"mappedKeys"`
+	// Register is the prompt of a word to register: Vim asks for it, then
+	// runs registerDone with it.
+	Register string `json:"register"`
 }
 
-// handle runs fn ("handleKey", "enable", "disable", "toggle" or the name
-// of a function) for keys, with the status of Vim.
+// handle runs fn ("handleKey", "enable", "disable", "toggle",
+// "registerDone" or the name of a function) for keys, with the status of
+// Vim.
 func (p *Plugin) handle(ctx context.Context, h sdk.Host, params []any) (any, error) {
 	var args struct {
 		Fn      string
@@ -150,6 +162,15 @@ func (p *Plugin) handle(ctx context.Context, h sdk.Host, params []any) (any, err
 }
 
 func (p *Plugin) run(ctx context.Context, h sdk.Host, fn string, keys []string, st Status, enabled bool) (Result, error) {
+	if fn == "registerDone" {
+		// Back from the prompt: the context that asked.
+		if len(p.outer) == 0 {
+			return Result{}, fmt.Errorf("goda-skk: registerDone without registerWord")
+		}
+		o := p.outer[len(p.outer)-1]
+		p.outer = p.outer[:len(p.outer)-1]
+		p.c, p.lastMode = o.c, o.lastMode
+	}
 	c := p.c
 	c.ctx, c.host = ctx, h
 	c.popup, c.disable, c.reenable = nil, false, false
@@ -203,6 +224,15 @@ func (p *Plugin) run(ctx context.Context, h sdk.Host, fn string, keys []string, 
 		fn = "handleKey"
 	}
 
+	if fn == "registerDone" {
+		word := ""
+		if len(keys) > 0 {
+			word = keys[0]
+		}
+		registerDone(c, word)
+		return p.result(c.pre.output(c.text())), nil
+	}
+
 	before := c.mode
 	if st.PumVisible && fn == "handleKey" && strings.Join(keys, "") == "<cr>" &&
 		st.Selected >= 0 && p.cfg.EggLikeNewline && st.ConfirmKey != "" {
@@ -214,6 +244,9 @@ func (p *Plugin) run(ctx context.Context, h sdk.Host, fn string, keys []string, 
 	if fn == "handleKey" {
 		for _, k := range keys {
 			handleKey(c, k)
+			if c.register != nil {
+				break
+			}
 		}
 	} else {
 		f := functions[fn]
@@ -232,7 +265,14 @@ func (p *Plugin) run(ctx context.Context, h sdk.Host, fn string, keys []string, 
 		// Something to feed, so that the mode shown is redrawn.
 		out = " \b"
 	}
-	return p.result(out), nil
+	res := p.result(out)
+	if r := c.register; r != nil {
+		// Vim asks for the word next; meanwhile, keys go to a new context.
+		res.Register, res.Popup = r.prompt, nil
+		p.outer = append(p.outer, outerContext{c, p.lastMode})
+		p.c = p.newContext()
+	}
+	return res, nil
 }
 
 // result is the Result of the handling, with keys to feed.
@@ -272,7 +312,7 @@ func (p *Plugin) result(keys string) Result {
 func (p *Plugin) reset(context.Context, sdk.Host, []any) (any, error) {
 	p.mu.Lock()
 	defer p.mu.Unlock()
-	p.c = p.newContext()
+	p.c, p.outer = p.newContext(), nil
 	return nil, nil
 }
 

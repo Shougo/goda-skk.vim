@@ -34,17 +34,17 @@ function! goda_skk#internal#save(mode) abort
   setlocal virtualedit=onemore
 endfunction
 
-" Put back what goda_skk#internal#save() changed.
-function! goda_skk#internal#restore() abort
+" Put back what goda_skk#internal#save({mode}) changed.
+function! goda_skk#internal#restore(mode) abort
   let bufnr = bufnr('%')
-  for [mode, maps] in items(get(s:maps, bufnr, {}))
-    execute mode . 'mapclear <buffer>'
-    for m in maps
-      call mapset(mode, v:false, m)
+  let saved = get(s:maps, bufnr, {})
+  if has_key(saved, a:mode)
+    execute a:mode . 'mapclear <buffer>'
+    for m in remove(saved, a:mode)
+      call mapset(a:mode, v:false, m)
     endfor
-  endfor
-  silent! unlet s:maps[bufnr]
-  if has_key(s:options, bufnr)
+  endif
+  if a:mode ==# 'i' && has_key(s:options, bufnr)
     let o = remove(s:options, bufnr)
     let &l:textwidth = o.textwidth
     let &l:virtualedit = o.virtualedit

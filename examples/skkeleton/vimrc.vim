@@ -1,6 +1,12 @@
 " The Vim script of a skkeleton user, translated (see main.go for
-" skkeleton#config()). skkeleton-state-popup and skkeleton-henkan-highlight
-" are built in; pum.vim is found by itself.
+" skkeleton#config() and the completion). skkeleton-state-popup and
+" skkeleton-henkan-highlight are built in; pum.vim is found by itself.
+
+" The input method is in the binary of goda-cmp.vim (main.go is the
+" goda-cmp.vim configuration, built with goda_cmp#build()).
+let g:goda_skk#binary = has('nvim')
+      \ ? stdpath('cache') . '/goda-cmp/goda-cmp'
+      \ : expand('~/.cache/vim/goda-cmp/goda-cmp')
 
 inoremap <C-j> <Plug>(goda-skk-toggle)
 cnoremap <C-j> <Plug>(goda-skk-toggle)
@@ -95,7 +101,35 @@ call goda_skk#state_popup#config(#{
       \ })
 call goda_skk#state_popup#enable()
 
-" The ddc.vim sources skkeleton and skkeleton_okuri: a goda-cmp.vim source
-" is to come; goda_cmp#get_buffer(), goda_cmp#patch_buffer() and
-" goda_cmp#set_buffer() swap the sources in goda-skk-enable-pre and
-" goda-skk-disable-post as ddc#custom#*_buffer() did.
+" The sources of the input method while it is enabled.
+autocmd MyAutoCmd User goda-skk-enable-pre call s:skk_pre_cmp()
+function s:skk_pre_cmp() abort
+  if 'b:prev_buffer_skk_config'->exists()
+    return
+  endif
+
+  " Overwrite sources
+  let b:prev_buffer_skk_config = goda_cmp#get_buffer()
+
+  call goda_cmp#patch_buffer(#{
+        \   cmdlineSources: {
+        \     ':': ['skk', 'skk_okuri'],
+        \     '@': ['skk', 'skk_okuri'],
+        \   },
+        \   sources: ['around', 'skk', 'skk_okuri', 'line'],
+        \   sourceOptions: #{
+        \     _: #{
+        \       keywordPattern: '[ァ-ヮア-ンー]+',
+        \     },
+        \   },
+        \ })
+endfunction
+
+autocmd MyAutoCmd User goda-skk-disable-post call s:skk_post_cmp()
+function s:skk_post_cmp() abort
+  if 'b:prev_buffer_skk_config'->exists()
+    " Restore sources
+    call goda_cmp#set_buffer(b:prev_buffer_skk_config)
+    unlet b:prev_buffer_skk_config
+  endif
+endfunction

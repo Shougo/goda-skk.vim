@@ -16,6 +16,12 @@ const (
 	ModeAbbrev  = "abbrev"
 )
 
+// registration is a word to register: the prompt, and the conversion.
+type registration struct {
+	prompt string
+	state  state
+}
+
 // candidateRef is a candidate that was confirmed, for purgeCandidate.
 type candidateRef struct {
 	typ       HenkanType
@@ -55,6 +61,9 @@ type Context struct {
 	reenable bool
 
 	undo undoState
+
+	// register is the registration of a word to ask Vim for.
+	register *registration
 
 	ctx  context.Context
 	host sdk.Host

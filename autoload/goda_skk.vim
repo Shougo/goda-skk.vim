@@ -162,6 +162,11 @@ function! goda_skk#handle(func, keys = []) abort
   call s:set_mode(r.mode)
   let s:popup = r.popup
   let s:pre_edit = r.preEdit
+  if r.register !=# ''
+    " After the keys: ask for the word to register.
+    let s:register_prompt = r.register
+    let keys .= "\<Cmd>call goda_skk#_register_word()\<CR>"
+  endif
   if r.restore isnot v:null
     " After the text landed: where kakuteiUndo left from.
     let keys .= printf("\<Cmd>call goda_skk#_restore_point(%d, %d)\<CR>",
@@ -171,12 +176,20 @@ function! goda_skk#handle(func, keys = []) abort
   return ''
 endfunction
 
+" Only when there is one: an event without autocommands says so, and in
+" Vim that keeps TextChangedI from coming.
+function! s:doautocmd(name) abort
+  if exists('#User#' . a:name)
+    execute 'doautocmd <nomodeline> User' a:name
+  endif
+endfunction
+
 function! s:set_mode(mode) abort
   if a:mode ==# g:goda_skk#mode
     return
   endif
   let g:goda_skk#mode = a:mode
-  doautocmd <nomodeline> User goda-skk-mode-changed
+  call s:doautocmd('goda-skk-mode-changed')
 endfunction
 
 " After the keys were typed: the list of candidates, the highlight of the
@@ -190,7 +203,7 @@ function! goda_skk#_handled() abort
     endif
     call goda_skk#highlight#update(g:goda_skk#state.phase, get(s:, 'pre_edit', ''))
   endif
-  doautocmd <nomodeline> User goda-skk-handled
+  call s:doautocmd('goda-skk-handled')
 endfunction
 
 " For kakuteiUndo: put the cursor right after {kakutei} when the line still
@@ -207,15 +220,72 @@ function! goda_skk#_locate_kakutei(bufnr, lnum, before, kakutei) abort
   return v:true
 endfunction
 
+" A completion (goda-skk.vim/cmp/source) replaced the pre-edit.
+function! goda_skk#_complete_done(phase) abort
+  let g:goda_skk#state = #{phase: a:phase, henkanFeed: ''}
+  let [s:popup, s:pre_edit] = [[], '']
+  call goda_skk#popup#close()
+  call goda_skk#highlight#clear()
+  if g:goda_skk#enabled
+    call s:doautocmd('goda-skk-handled')
+  endif
+endfunction
+
 function! goda_skk#_restore_point(lnum, col) abort
   if mode() ==# 'i' && line('.') == a:lnum
     call cursor(a:lnum, a:col)
   endif
 endfunction
 
-function! goda_skk#_key(i) abort
-  let [func, key] = b:goda_skk_keys[a:i]
+function! goda_skk#_key(mode, i) abort
+  let [func, key] = b:goda_skk_keys[a:mode][a:i]
   return goda_skk#handle(func, [key])
+endfunction
+
+" The registration of a word: ask for it on the command line, where the
+" input method is enabled, and tell the plugin ('' when cancelled). The
+" input method of where it was asked from is put aside meanwhile.
+function! goda_skk#_register_word() abort
+  let outer = #{enabled: g:goda_skk#enabled, mode: g:goda_skk#mode,
+        \ state: g:goda_skk#state, enabled_mode: get(s:, 'enabled_mode', 'i'),
+        \ popup: get(s:, 'popup', []), pre_edit: get(s:, 'pre_edit', '')}
+  call goda_skk#popup#close()
+  let g:goda_skk#enabled = v:false
+  augroup goda_skk_enabled
+    autocmd!
+    autocmd CmdlineEnter * ++once call goda_skk#enable()
+  augroup END
+  " The cursor stays where it is at the end of the line.
+  let virtualedit = &l:virtualedit
+  setlocal virtualedit=all
+  let word = ''
+  try
+    let word = input(s:register_prompt)
+  catch /^Vim:Interrupt$/
+  finally
+    if g:goda_skk#enabled
+      call s:disable()
+    endif
+    let &l:virtualedit = virtualedit
+    let g:goda_skk#enabled = outer.enabled
+    let g:goda_skk#state = outer.state
+    let s:enabled_mode = outer.enabled_mode
+    let [s:popup, s:pre_edit] = [outer.popup, outer.pre_edit]
+    if outer.enabled
+      call s:autocmds()
+      " What the prompt's disabling undid (the sources of a completion,
+      " say) is done again.
+      call s:doautocmd('goda-skk-enable-pre')
+      call s:doautocmd('goda-skk-enable-post')
+    else
+      augroup goda_skk_enabled
+        autocmd!
+      augroup END
+    endif
+    call s:set_mode(outer.mode)
+    echo '' | redraw
+  endtry
+  call goda_skk#handle('registerDone', [word])
 endfunction
 
 function! goda_skk#enable() abort
@@ -243,13 +313,14 @@ endfunction
 
 " {keys}: the keys the configuration uses, from the plugin.
 function! s:enable(keys) abort
-  doautocmd <nomodeline> User goda-skk-enable-pre
+  call s:doautocmd('goda-skk-enable-pre')
   let mode = s:vim_mode()
   call goda_skk#internal#save(mode)
   let keys = get(g:, 'goda_skk#mapped_keys', []) + a:keys
   " The keys are not written into the mappings: quotes, backslashes and bars
   " would need escaping, differently in each.
-  let b:goda_skk_keys = []
+  let b:goda_skk_keys = get(b:, 'goda_skk_keys', {})
+  let b:goda_skk_keys[mode] = []
   for lhs in uniq(sort(keys))
     " A key the user mapped to <Plug>(goda-skk-...) keeps doing that.
     let func = 'handleKey'
@@ -257,11 +328,17 @@ function! s:enable(keys) abort
     if !empty(m)
       let func = m[1]
     endif
-    execute printf('%snoremap <buffer> <nowait> %s <Cmd>call goda_skk#_key(%d)<CR>',
-          \ mode, lhs, len(b:goda_skk_keys))
-    call add(b:goda_skk_keys, [func, s:notation(lhs)])
+    execute printf('%snoremap <buffer> <nowait> %s <Cmd>call goda_skk#_key(%s, %d)<CR>',
+          \ mode, lhs, string(mode), len(b:goda_skk_keys[mode]))
+    call add(b:goda_skk_keys[mode], [func, s:notation(lhs)])
   endfor
   let g:goda_skk#enabled = v:true
+  let s:enabled_mode = mode
+  call s:autocmds()
+  call s:doautocmd('goda-skk-enable-post')
+endfunction
+
+function! s:autocmds() abort
   augroup goda_skk_enabled
     autocmd!
     " Leaving insert mode, the command line or the terminal job ends the
@@ -269,17 +346,16 @@ function! s:enable(keys) abort
     autocmd ModeChanged *:n,*:nt call s:reset()
     autocmd WinLeave * call s:reset()
   augroup END
-  doautocmd <nomodeline> User goda-skk-enable-post
 endfunction
 
 function! s:disable(reenable = v:false) abort
   if !g:goda_skk#enabled
     return
   endif
-  doautocmd <nomodeline> User goda-skk-disable-pre
+  call s:doautocmd('goda-skk-disable-pre')
   call goda_skk#popup#close()
   call goda_skk#highlight#clear()
-  call goda_skk#internal#restore()
+  call goda_skk#internal#restore(get(s:, 'enabled_mode', 'i'))
   let g:goda_skk#enabled = v:false
   augroup goda_skk_enabled
     autocmd!
@@ -289,7 +365,7 @@ function! s:disable(reenable = v:false) abort
           \ call feedkeys("\<Cmd>call goda_skk#enable()\<CR>", 'n')
   endif
   call s:set_mode('')
-  doautocmd <nomodeline> User goda-skk-disable-post
+  call s:doautocmd('goda-skk-disable-post')
 endfunction
 
 function! s:reset() abort

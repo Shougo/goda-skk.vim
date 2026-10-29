@@ -366,9 +366,35 @@ func suffix(c *Context, _ string) {
 	c.state.affix = affixSuffix
 }
 
-// registerWord asks for a word to register when there are no more
-// candidates. (Not yet: false keeps the last candidate.)
-func registerWord(*Context) bool { return false }
+// registerWord asks for the word of the reading when there are no more
+// candidates: Vim asks on the command line (where the input method works
+// too, with a context of its own) and tells it with registerDone. Until
+// then, the conversion stays as it was.
+func registerWord(c *Context) bool {
+	s := &c.state
+	prompt := "[辞書登録] " + s.henkanFeed
+	if s.mode == modeOkuriAri {
+		prompt += "*" + s.okuriFeed
+	}
+	st := s.clone()
+	c.register = &registration{prompt: prompt + ": ", state: st}
+	return false
+}
+
+// registerDone confirms the word registered, and learns it; "" keeps the
+// conversion as it was.
+func registerDone(c *Context, word string) {
+	r := c.register
+	c.register = nil
+	if r == nil || word == "" {
+		return
+	}
+	c.state = r.state
+	c.state.candidates, c.state.index = []string{word}, 0
+	kakutei(c)
+	// Taking it back would only choose the word just registered.
+	c.invalidateKakutei()
+}
 
 // ---------------------------------------------------------------------------
 // Confirming
