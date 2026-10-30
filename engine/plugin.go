@@ -2,7 +2,9 @@ package engine
 
 import (
 	"context"
+	"errors"
 	"fmt"
+	"io"
 	"log"
 	"strings"
 	"sync"
@@ -331,4 +333,19 @@ var modeFunctions = map[string]Func{
 	ModeZenkaku: zenkaku,
 }
 
-var _ sdk.Plugin = (*Plugin)(nil)
+// Close closes the dictionaries that hold something (the connection of an
+// SKK server), when the plugin stops.
+func (p *Plugin) Close(context.Context) error {
+	var errs []error
+	for _, d := range p.cfg.Dictionaries {
+		if c, ok := d.(io.Closer); ok {
+			errs = append(errs, c.Close())
+		}
+	}
+	return errors.Join(errs...)
+}
+
+var (
+	_ sdk.Plugin = (*Plugin)(nil)
+	_ sdk.Closer = (*Plugin)(nil)
+)

@@ -351,6 +351,38 @@ engine.NewJisyo({path}, {encoding})
 		when the binary starts.  {encoding}: "utf-8", "euc-jp", or ""
 		to detect them.
 
+skkserv.New({params})                                   *goda-skk-skkserv*
+		An SKK server (skkserv, yaskkserv2, ...), package
+		github.com/Shougo/goda-skk.vim/dictionary/skkserv; as
+		skkeleton's source skk_server.  {params} (skkserv.Params):
+		Addr		"localhost:1178"
+		Encoding	"euc-jp" or "utf-8" (default "euc-jp")
+		Timeout		for a request (default time.Second)
+		MaxCompletions	readings a completion looks up (default 30)
+		One connection is kept, connected when the binary starts.  A
+		request not answered in time gives nothing, and a server that
+		cannot be reached is tried again every few seconds only, so
+		that typing does not wait for it.
+
+google.New({params})                                     *goda-skk-google*
+		Google Japanese Input (Google CGI API for Japanese Input),
+		package github.com/Shougo/goda-skk.vim/dictionary/google; as
+		skkeleton's source google_japanese_input.  It converts
+		readings without okurigana as one phrase, and does not
+		complete.  {params} (google.Params):
+		Timeout		for a request (default 500 milliseconds)
+		URL		the API (default google.DefaultURL)
+		A request not answered in time gives nothing.
+
+For example, the dictionary file first, then the server, then Google: >go
+
+	Dictionaries: []engine.Dictionary{
+		engine.NewJisyo("/usr/share/skk/SKK-JISYO.L", ""),
+		skkserv.New(skkserv.Params{Addr: "localhost:1178"}),
+		google.New(google.Params{}),
+	},
+<
+
 A dictionary is any Go value with the methods of engine.Dictionary:
 >go
 	Lookup(ctx context.Context, typ engine.HenkanType, word string)
@@ -513,7 +545,9 @@ DIFFERENCES FROM SKKELETON                                *goda-skk-skkeleton*
   register_completion_backend()).
 - The ddc.vim sources skkeleton and skkeleton_okuri are the goda-cmp.vim
   sources skk and skkokuri (|goda-skk-completion|).
-- Not yet: skkserv and Google Japanese Input.
+- The sources skk_server and google_japanese_input are the dictionaries
+  skkserv and google (|goda-skk-dictionaries|); deno_kv is not needed (the
+  dictionary files are read in the background when the binary starts).
 
 ==============================================================================
 CREDITS                                                     *goda-skk-credits*

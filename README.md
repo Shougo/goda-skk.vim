@@ -12,8 +12,9 @@ and terminal jobs work; the highlight of the pre-edit and the state popup
 (skkeleton-henkan-highlight and skkeleton-state-popup) are built in, and
 [goda-cmp.vim](https://github.com/Shougo/goda-cmp.vim) completes readings
 (the sources `cmp/source/skk` and `cmp/source/skkokuri`, the ddc.vim
-sources of skkeleton). skkserv and Google
-Japanese Input are to come.
+sources of skkeleton). Besides dictionary files, an SKK server
+(`dictionary/skkserv`) and Google Japanese Input (`dictionary/google`) can
+be dictionaries.
 
 A configuration with the completion of goda-cmp.vim, translated from a
 skkeleton one, is in [examples/goda-cmp](examples/goda-cmp).

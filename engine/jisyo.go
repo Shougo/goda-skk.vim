@@ -102,14 +102,26 @@ func (j *jisyo) index() {
 }
 
 func (j *jisyo) lookup(typ HenkanType, word string) []string {
+	return candidates(j.table(typ)[word])
+}
+
+// candidates are the items of an entry without its okuri blocks (those of
+// a user dictionary), which are not candidates.
+func candidates(items []string) []string {
 	var out []string
-	for _, c := range j.table(typ)[word] {
-		// The okuri blocks of a user dictionary are not candidates.
+	for _, c := range items {
 		if !(strings.HasPrefix(c, "[") && strings.Contains(c, "/")) {
 			out = append(out, c)
 		}
 	}
 	return out
+}
+
+// Candidates are the candidates of an entry of a dictionary in the SKK
+// format: "/c1/c2/" (the line without its reading), of a reading of typ. For
+// dictionaries that get entries elsewhere (an SKK server).
+func Candidates(entry string, typ HenkanType) []string {
+	return candidates(splitCandidates(entry, typ == OkuriAri))
 }
 
 func (j *jisyo) complete(prefix string) []Entry {
