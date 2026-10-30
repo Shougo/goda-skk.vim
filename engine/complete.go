@@ -110,6 +110,21 @@ func (p *Plugin) Lookup(ctx context.Context, typ HenkanType, word string) []stri
 	return p.lib.lookup(ctx, typ, word)
 }
 
+// readingOf reports whether the reading being typed is the one a completion
+// of word (typ) was for: the reading starts word, or with okurigana ("おくr")
+// starts with its stem.
+func (c *Context) readingOf(typ HenkanType, word string) bool {
+	s := c.state
+	if s.kind != stateInput || s.mode == modeDirect || s.henkanFeed == "" {
+		return false
+	}
+	if typ == OkuriAri {
+		_, size := utf8.DecodeLastRuneInString(word)
+		return strings.HasPrefix(s.henkanFeed, word[:len(word)-size])
+	}
+	return strings.HasPrefix(word, s.henkanFeed)
+}
+
 // CompleteDone is told that the completion inserted inserted, candidate of
 // word: it is learned, the reading typed is gone, and kakuteiUndo can take
 // it back.
@@ -137,9 +152,13 @@ func (p *Plugin) CompleteDone(ctx context.Context, h sdk.Host, typ HenkanType, w
 			c.recordKakutei(inserted, st)
 		}
 	}
-	// The pre-edit was replaced.
-	c.resetState(true, false)
-	c.pre.output("")
+	// The pre-edit was replaced. When a key was handled since (the
+	// completion was accepted by typing on), the reading is gone already
+	// and the state is that of the key, maybe a new reading: keep it.
+	if c.readingOf(typ, word) {
+		c.resetState(true, false)
+		c.pre.output("")
+	}
 	phase := c.state.phase()
 	p.mu.Unlock()
 	if h != nil {
