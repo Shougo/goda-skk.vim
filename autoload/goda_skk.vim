@@ -61,15 +61,14 @@ function! goda_skk#build() abort
   if goda#is_running('skk') && get(goda#plugins(), 'skk', '') ==# bin
     call goda#stop('skk')
   endif
+  call goda#register('skk', function('s:start'))
   echomsg 'goda-skk: built ' . bin
 endfunction
 
-" Start the binary unless a running one serves "skk" already (another
-" binary can contain the plugin).
+" Start the binary: goda.vim calls it when a key needs the plugin "skk" and no
+" binary serves it (not started yet, stopped, or exited; another binary can
+" contain the plugin).
 function! s:start() abort
-  if goda#is_running('skk')
-    return
-  endif
   let bin = s:binary()
   if !executable(bin)
     throw 'goda-skk: ' . bin . ' does not exist yet; build it with: call goda_skk#build()'
@@ -82,6 +81,9 @@ function! s:start() abort
     throw 'goda-skk: ' . bin . ' does not contain the "skk" plugin'
   endif
 endfunction
+
+" (Again after a build: a start that failed is tried again.)
+call goda#register('skk', function('s:start'))
 
 " ---------------------------------------------------------------------------
 " Keys
@@ -143,7 +145,6 @@ function! goda_skk#handle(func, keys = []) abort
     return ''
   endif
   try
-    call s:start()
     let r = goda#request('skk', 'handle', a:func, a:keys, s:status(),
           \ g:goda_skk#enabled)
   catch

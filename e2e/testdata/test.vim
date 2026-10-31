@@ -112,6 +112,10 @@ function! s:run() abort
     call s:terminal()
   endif
 
+  " The binary stopped (or exited): the next key starts it again.
+  call goda#stop('skk')
+  call s:check('restarted', s:type("\<C-j>aiu\<C-j>"), ['あいう'])
+
   " The buffer mappings come back.
   inoremap <buffer> a A
   call s:check('buffer map', s:type("\<C-j>ala"), ['あA'])
