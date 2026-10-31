@@ -90,3 +90,30 @@ func TestCompleteDone(t *testing.T) {
 		t.Errorf("okuri undo: %q %+v", s.line, s.res)
 	}
 }
+
+func TestCompleteDoneAfterKey(t *testing.T) {
+	s := newSim(t, Config{})
+	ctx := context.Background()
+	s.typ("Kan")
+	// The completion is accepted by typing on: the key is handled before
+	// the completion tells.
+	s.line = "感じ"
+	s.typ("d")
+	s.p.CompleteDone(ctx, s, OkuriNasi, "かんじ", "感じ", "感じ")
+	s.typ("esu")
+	if s.line != "感じです" {
+		t.Errorf("typing on: %q", s.line)
+	}
+	if got := s.p.lib.lookup(ctx, OkuriNasi, "かんじ"); got[0] != "感じ" {
+		t.Errorf("learned: %v", got)
+	}
+	// Typing on with a new reading.
+	s.typ("Kan")
+	s.line = "感じです感じ"
+	s.typ("O")
+	s.p.CompleteDone(ctx, s, OkuriNasi, "かんじ", "感じ", "感じ")
+	s.typ("ku")
+	if s.line != "感じです感じ▽おく" {
+		t.Errorf("a new reading: %q", s.line)
+	}
+}
