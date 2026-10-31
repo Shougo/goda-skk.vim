@@ -117,3 +117,19 @@ func TestCompleteDoneAfterKey(t *testing.T) {
 		t.Errorf("a new reading: %q", s.line)
 	}
 }
+
+func TestCompleteDoneAfterKeys(t *testing.T) {
+	s := newSim(t, Config{})
+	ctx := context.Background()
+	s.typ("Kan")
+	s.p.Reading()
+	s.line = "感じ"
+	// Two keys before the completion tells: a reading the completed one
+	// starts with.
+	s.typ("Ka")
+	s.p.CompleteDone(ctx, s, OkuriNasi, "かんじ", "感じ", "感じ")
+	s.typ("ku")
+	if s.line != "感じ▽かく" || s.preedit() != "▽かく" {
+		t.Errorf("the reading is lost: %q %q", s.line, s.preedit())
+	}
+}

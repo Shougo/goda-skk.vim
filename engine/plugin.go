@@ -31,6 +31,10 @@ type Plugin struct {
 	// outer are the contexts put aside while Vim asks for a word to
 	// register (registerWord): the keys of the prompt have their own.
 	outer []outerContext
+	// startedOver: since the last Reading(), a key found the buffer not
+	// what the pre-edit says and started over (a completion was accepted
+	// by typing on). CompleteDone must not reset what it typed then.
+	startedOver bool
 }
 
 type outerContext struct {
@@ -193,6 +197,7 @@ func (p *Plugin) run(ctx context.Context, h sdk.Host, fn string, keys []string, 
 		}
 		c.resetState(true, false)
 		c.pre.output("")
+		p.startedOver = true
 	}
 	if fn == "toggle" {
 		fn = "enable"
