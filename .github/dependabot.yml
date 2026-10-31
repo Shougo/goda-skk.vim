@@ -1,0 +1,20 @@
+# Dependabot: updates of the GitHub Actions and of the Go modules,
+# once a week, of releases at least 7 days old (time for a broken or malicious
+# release to be found).
+version: 2
+updates:
+  - package-ecosystem: gomod
+    directory: /
+    schedule:
+      interval: weekly
+    cooldown:
+      default-days: 7
+      # Our own modules: at once.
+      exclude:
+        - github.com/Shougo/*
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+    cooldown:
+      default-days: 7
