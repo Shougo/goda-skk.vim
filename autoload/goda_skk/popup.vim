@@ -21,6 +21,13 @@ function! goda_skk#popup#open(lines) abort
     redraw
     return
   endif
+  " Scrolled: where the cursor is now (#30 of skkeleton.nvim, for the
+  " state popup).
+  let s:lines = a:lines
+  augroup goda_skk_popup
+    autocmd!
+    autocmd WinScrolled * call s:reopen()
+  augroup END
   let pos = screenpos(0, line('.'), col('.'))
   " Neovim does not put a window over the command line.
   let above = &lines - pos.row - (has('nvim') ? &cmdheight : 0) < len(a:lines)
@@ -43,10 +50,19 @@ function! s:nvim_open(lines, opts) abort
         \ extend(#{style: 'minimal', border: 'none', focusable: v:false}, a:opts)))
 endfunction
 
+function! s:reopen() abort
+  if mode() =~# '^i' && !empty(s:windows)
+    call goda_skk#popup#open(s:lines)
+  endif
+endfunction
+
 function! goda_skk#popup#close() abort
   if empty(s:windows)
     return
   endif
+  augroup goda_skk_popup
+    autocmd!
+  augroup END
   for w in s:windows
     if has('nvim')
       if nvim_win_is_valid(w)

@@ -55,6 +55,13 @@ function! s:run() abort
   %delete _
   call feedkeys("i\<C-j>Kanji     d\<Cmd>let s:popup = s:popup_lines()\<CR>\<C-g>\<C-g>\<Esc>", 'xt')
   call s:check('popup stays', s:popup, ['a: 完治', 's: 関知'])
+  " Scrolled: it is under the cursor still (WinScrolled comes when Vim
+  " waits for a key).
+  call setline(1, ['a', 'b', 'c'])
+  call feedkeys("2GA\<C-j>Kanji     \<Cmd>let s:popup = [s:popup_row()]\<CR>"
+        \ . "\<C-x>\<C-e>\<Cmd>doautocmd <nomodeline> WinScrolled\<CR>"
+        \ . "\<Cmd>let s:popup += [s:popup_row(), s:popup_lines()]\<CR>\<C-g>\<C-g>\<Esc>", 'xt')
+  call s:check('popup scrolled', s:popup, [3, 2, ['a: 完治', 's: 関知']])
 
   " The popup lists the candidates after the fourth.
   %delete _
