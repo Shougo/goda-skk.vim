@@ -346,6 +346,12 @@ func TestCandidateList(t *testing.T) {
 	if !slices.Equal(s.res.Popup, want) {
 		t.Fatalf("popup %q", s.res.Popup)
 	}
+	// A key of no candidate on the page: still choosing, with the list
+	// (#14 of skkeleton.nvim).
+	s.typ("k")
+	if got := s.preedit(); got != "▼完治" || !slices.Equal(s.res.Popup, want) {
+		t.Errorf("no candidate: %q %q", got, s.res.Popup)
+	}
 	s.typ("s")
 	if s.line != "寛治" {
 		t.Errorf("chosen: %q", s.line)
@@ -826,7 +832,7 @@ func TestStalePreEdit(t *testing.T) {
 	// <Left>
 	s.after, s.line = "あ", "▽"
 	res := s.call("handleKey", "i")
-	if res.Stale != "▽あ" {
+	if res.Stale != "▽あ" || res.StaleText != "あ" {
 		t.Errorf("stale: %+v", res)
 	}
 	if res = s.call("handleKey", "u"); res.Stale != "" {

@@ -32,8 +32,9 @@ type Plugin struct {
 	// register (registerWord): the keys of the prompt have their own.
 	outer []outerContext
 	// stale is the pre-edit left where the cursor is no more (the input
-	// started over), for Result.Stale.
-	stale string
+	// started over), for Result.Stale; staleText is its text without the
+	// markers, for Result.StaleText.
+	stale, staleText string
 	// startedOver: since the last Reading(), a key found the buffer not
 	// what the pre-edit says and started over (a completion was accepted
 	// by typing on). CompleteDone must not reset what it typed then.
@@ -139,6 +140,10 @@ type Result struct {
 	// not take back (the cursor moved): on the command line, where it is
 	// text, Vim removes it (#12 of skkeleton.nvim).
 	Stale string `json:"stale"`
+	// StaleText is Stale without the markers: in insert mode, what Vim
+	// leaves of it (what else was typed there, a completion that appended
+	// to the reading, say, stays too; #20 of skkeleton.nvim).
+	StaleText string `json:"staleText"`
 	// Register is the prompt of a word to register: Vim asks for it, then
 	// runs registerDone with it.
 	Register string `json:"register"`
@@ -202,7 +207,7 @@ func (p *Plugin) run(ctx context.Context, h sdk.Host, fn string, keys []string, 
 		if !resolved {
 			c.invalidateKakutei()
 		}
-		p.stale = c.pre.current
+		p.stale, p.staleText = c.pre.current, c.state.bareText()
 		c.resetState(true, false)
 		c.pre.output("")
 		p.startedOver = true
@@ -275,6 +280,12 @@ func (p *Plugin) run(ctx context.Context, h sdk.Host, fn string, keys []string, 
 			f(c, "")
 		}
 	}
+	if s := &c.state; s.kind == stateHenkan && s.index >= c.cfg.ShowCandidatesCount &&
+		len(c.popup) == 0 && c.register == nil {
+		// Still choosing (a key not of the page, say): the list stays
+		// (#14 of skkeleton.nvim).
+		showCandidates(c)
+	}
 	out := c.pre.output(c.text())
 	if out == "" && before != c.mode {
 		// Something to feed, so that the mode shown is redrawn.
@@ -310,10 +321,11 @@ func (p *Plugin) result(keys string) Result {
 	if c.state.kind == stateEscape {
 		pre = ""
 	}
-	stale := p.stale
-	p.stale = ""
+	stale, staleText := p.stale, p.staleText
+	p.stale, p.staleText = "", ""
 	return Result{
 		Stale:      stale,
+		StaleText:  staleText,
 		PreEdit:    pre,
 		Restore:    restore,
 		Keys:       keys,

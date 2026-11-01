@@ -120,6 +120,32 @@ func candidateText(c string, a affix) string {
 	return c
 }
 
+// bareText is the pre-edit of the state without the markers: what was
+// typed of it.
+func (s *state) bareText() string {
+	switch s.kind {
+	case stateHenkan:
+		c := ""
+		if s.index >= 0 && s.index < len(s.candidates) {
+			c = candidateText(s.candidates[s.index], s.affix)
+		}
+		return c + s.converter.apply(s.okuriFeed)
+	case stateEscape:
+		return ""
+	}
+	ret := ""
+	if s.mode != modeDirect {
+		ret = s.henkanFeed
+	}
+	if s.mode == modeOkuriAri {
+		if s.previousFeed {
+			return ret + s.feed
+		}
+		ret += s.okuriFeed
+	}
+	return s.converter.apply(ret) + s.feed
+}
+
 // text is the pre-edit of the state: what is shown in the buffer.
 func (s *state) text(cfg *Config) string {
 	switch s.kind {

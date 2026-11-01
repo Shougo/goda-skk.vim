@@ -19,6 +19,15 @@ function! goda_skk#state_popup#enable() abort
     autocmd!
     autocmd User goda-skk-handled,goda-skk-disable-post call s:update()
     autocmd InsertEnter * call s:update()
+    " A candidate of a completion inserted moves the cursor without
+    " CursorMovedI (#18 of skkeleton.nvim). (Neovim does not change windows
+    " in CompleteChanged: right after it.)
+    autocmd TextChangedP * call s:update()
+    if has('nvim')
+      autocmd CompleteChanged * call timer_start(0, {-> s:update()})
+    else
+      autocmd CompleteChanged * call s:update()
+    endif
     if has_key(s:config.labels, 'latin')
       autocmd CursorMovedI * call s:update()
     endif

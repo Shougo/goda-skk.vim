@@ -51,6 +51,11 @@ function! s:run() abort
   call s:check('enable again', s:type("\<C-j>a\<C-j>i"), ['あい'])
   call s:check('text before', s:type("xyz\<C-j>aiu"), ['xyzあいう'])
 
+  " A key of no candidate on the page: the list stays.
+  %delete _
+  call feedkeys("i\<C-j>Kanji     d\<Cmd>let s:popup = s:popup_lines()\<CR>\<C-g>\<C-g>\<Esc>", 'xt')
+  call s:check('popup stays', s:popup, ['a: 完治', 's: 関知'])
+
   " The popup lists the candidates after the fourth.
   %delete _
   let s:popup = []
@@ -98,6 +103,11 @@ function! s:run() abort
   call s:check('state popup', s:sp, ['あ'])
   call s:check('state popup henkan', s:sp2, ['▼'])
   call s:check('state popup closed', s:popup_lines(), [])
+  " A candidate of a completion inserted: it follows the cursor.
+  call setline(1, ['ab cd', ''])
+  call feedkeys("2Gi\<C-j>\<C-x>\<C-n>\<Cmd>sleep 20m\<CR>"
+        \ . "\<Cmd>let s:sp = [s:popup_col(), screenpos(0, 2, col('.')).col]\<CR>\<C-e>\<Esc>", 'xt')
+  call s:check('state popup completion', s:sp, [3, 3])
   call goda_skk#state_popup#disable()
 
   " The command line.
@@ -109,6 +119,40 @@ function! s:run() abort
   let s:cl = ''
   call feedkeys(":\<C-j>A\<Left>i\<Cmd>let s:cl = getcmdline()\<CR>\<C-u>\<Esc>", 'xt')
   call s:check('cmdline stale', s:cl, 'い')
+
+  " The pre-edit left in insert mode: its markers go (and an expression
+  " typed after it does not take it back).
+  call s:check('insert stale', s:type("\<C-j>A\<Left>i"), ['いあ'])
+  call s:check('insert stale inside', s:type("\<C-j>Kanj\<Left>i"), ['かんいj'])
+  call setline(1, 'ab cd')
+  call feedkeys("0i\<C-j>O\<C-r>=1\<CR>a\<Esc>", 'xt')
+  call s:check('insert stale expression', getline(1), 'お1あab cd')
+
+  " Another window: the input is reset, and so is the state.
+  %delete _
+  new
+  wincmd p
+  call feedkeys("i\<C-j>Kanji\<Cmd>wincmd w\<CR>"
+        \ . "\<Cmd>let s:st = [g:goda_skk#enabled, g:goda_skk#state]\<CR>\<Esc>", 'xt')
+  call s:check('other window', s:st, [v:false, #{phase: '', henkanFeed: ''}])
+  only!
+  " Not while registering: the prompt belongs to the window.
+  call setline(1, 'ab cd')
+  new
+  call setline(1, 'xy')
+  wincmd p
+  let win = win_getid()
+  call feedkeys("A\<C-j>Ringo \<Cmd>wincmd w\<CR>\<Esc>"
+        \ . "\<Cmd>let s:st = [win_getid() == win ? 'same' : 'other', g:goda_skk#enabled, g:goda_skk#mode]\<CR>a\<Esc>", 'xt')
+  call s:check('register window', s:st, ['same', v:true, 'hira'])
+  call setline(1, 'ab cd')
+  call feedkeys("A\<C-j>Ringo Kanji \<C-j>\<Cmd>wincmd w\<CR>\<CR>"
+        \ . "\<Cmd>let s:st = win_getid() == win ? 'same' : 'other'\<CR>\<Esc>", 'xt')
+  call s:check('register window confirmed', s:st, 'same')
+  call s:check('register window lines', [getline(1), getbufline(winbufnr(winnr('#')), 1)],
+        \ ['ab cd関知', ['xy']])
+  only!
+  enew!
 
   " A terminal job (no cat on MS-Windows; Neovim does not enter Terminal
   " mode within feedkeys() with "x").
@@ -156,6 +200,17 @@ function! s:highlights() abort
           \ {_, m -> [m[2] + 1, m[3].end_col - m[2], m[3].hl_group]})
   endif
   return map(prop_list(1), {_, p -> [p.col, p.length, p.type]})
+endfunction
+
+" The screen column of the popup.
+function! s:popup_col() abort
+  redraw
+  if has('nvim')
+    let wins = filter(nvim_list_wins(), 'nvim_win_get_config(v:val).relative !=# ""')
+    return empty(wins) ? 0 : nvim_win_get_position(wins[0])[1] + 1
+  endif
+  let ids = popup_list()
+  return empty(ids) ? 0 : popup_getpos(ids[0]).col
 endfunction
 
 function! s:popup_lines() abort

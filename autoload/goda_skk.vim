@@ -161,8 +161,8 @@ function! goda_skk#handle(func, keys = []) abort
     call s:disable(r.reenable)
   endif
   call s:set_mode(r.mode)
-  if get(r, 'stale', '') !=# '' && mode() ==# 'c'
-    call s:remove_stale(r.stale)
+  if get(r, 'stale', '') !=# ''
+    call s:remove_stale(r.stale, get(r, 'staleText', ''))
   endif
   let s:popup = r.popup
   let s:pre_edit = r.preEdit
@@ -196,32 +196,60 @@ function! s:set_mode(mode) abort
   call s:doautocmd('goda-skk-mode-changed')
 endfunction
 
-" On the command line, the pre-edit is text: where it starts, to remove it
-" when the cursor left it (it is in the command line, not before the cursor).
-function! s:remove_stale(stale) abort
-  let at = get(s:, 'cmd_pre_edit', {})
-  let line = getcmdline()
+" The pre-edit is text: when the input started over from {stale} (the cursor
+" left it, or something else was typed after it), it is not before the
+" cursor any more. Where it still is, the command line loses it; insert mode
+" keeps {text} of it, without the markers (what was typed after it, a
+" completion that appended to it, say, belongs with it).
+function! s:remove_stale(stale, text) abort
+  let at = get(s:, 'pre_edit_at', {})
+  let s:pre_edit_at = {}
   if get(at, 'text', '') !=# a:stale
-        \ || strpart(line, at.start - 1, strlen(a:stale)) !=# a:stale
+    return
+  endif
+  if at.mode ==# 'c' && mode() ==# 'c' && getcmdtype() ==# at.cmdtype
+    let [line, pos, keep] = [getcmdline(), getcmdpos(), '']
+  elseif at.mode ==# 'i' && mode() =~# '^i' && !pumvisible()
+        \ && !(exists('*pum#visible') && pum#visible())
+        \ && bufnr('%') == at.bufnr && line('.') == at.lnum
+    " (Not under a completion, which knows where its text starts.)
+    let [line, pos, keep] = [getline('.'), col('.'), a:text]
+  else
     return
   endif
   let len = strlen(a:stale)
-  let pos = getcmdpos()
-  if pos >= at.start + len
-    let pos -= len
-  elseif pos > at.start
-    let pos = at.start
+  if strpart(line, at.start - 1, len) !=# a:stale
+    return
   endif
-  call setcmdline(strpart(line, 0, at.start - 1) . strpart(line, at.start - 1 + len), pos)
-  let s:cmd_pre_edit = {}
+  if pos >= at.start + len
+    let pos -= len - strlen(keep)
+  elseif pos > at.start
+    " Before what is kept of the rest.
+    let rest = strpart(line, pos - 1, at.start + len - pos)
+    let pos = keep =~# '\V' . escape(rest, '\') . '\$'
+          \ ? at.start + strlen(keep) - strlen(rest) : at.start
+  endif
+  let line = strpart(line, 0, at.start - 1) . keep . strpart(line, at.start - 1 + len)
+  if at.mode ==# 'c'
+    call setcmdline(line, pos)
+  else
+    call setline('.', line)
+    call cursor(line('.'), pos)
+  endif
 endfunction
 
 " After the keys were typed: the list of candidates, the highlight of the
 " pre-edit, User goda-skk-handled.
 function! goda_skk#_handled() abort
+  " Where the pre-edit is, for s:remove_stale().
+  let pre_edit = get(s:, 'pre_edit', '')
+  let s:pre_edit_at = {}
   if mode() ==# 'c'
-    let pre_edit = get(s:, 'pre_edit', '')
-    let s:cmd_pre_edit = #{text: pre_edit, start: getcmdpos() - strlen(pre_edit)}
+    let s:pre_edit_at = #{mode: 'c', text: pre_edit, cmdtype: getcmdtype(),
+          \ start: getcmdpos() - strlen(pre_edit)}
+  elseif mode() =~# '^i'
+    let s:pre_edit_at = #{mode: 'i', text: pre_edit, bufnr: bufnr('%'),
+          \ lnum: line('.'), start: col('.') - strlen(pre_edit)}
   endif
   call goda_skk#popup#close()
   call goda_skk#highlight#clear()
@@ -283,6 +311,16 @@ function! goda_skk#_register_word() abort
     autocmd!
     autocmd CmdlineEnter * ++once call goda_skk#enable()
   augroup END
+  " The prompt belongs to the window: another window is not entered
+  " meanwhile (#13 of skkeleton.nvim). Registrations nest.
+  let s:registering = get(s:, 'registering', 0) + 1
+  if s:registering == 1
+    let s:register_win = win_getid()
+    augroup goda_skk_register
+      autocmd!
+      autocmd WinEnter * call s:register_back()
+    augroup END
+  endif
   " The cursor stays where it is at the end of the line.
   let virtualedit = &l:virtualedit
   setlocal virtualedit=all
@@ -291,6 +329,13 @@ function! goda_skk#_register_word() abort
     let word = input(s:register_prompt)
   catch /^Vim:Interrupt$/
   finally
+    let s:registering -= 1
+    if s:registering == 0
+      augroup goda_skk_register
+        autocmd!
+      augroup END
+      call s:register_back()
+    endif
     if g:goda_skk#enabled
       call s:disable()
     endif
@@ -314,6 +359,12 @@ function! goda_skk#_register_word() abort
     echo '' | redraw
   endtry
   call goda_skk#handle('registerDone', [word])
+endfunction
+
+function! s:register_back() abort
+  if win_getid() != s:register_win && win_id2win(s:register_win) > 0
+    call win_gotoid(s:register_win)
+  endif
 endfunction
 
 function! goda_skk#enable() abort
@@ -397,8 +448,15 @@ function! s:disable(reenable = v:false) abort
 endfunction
 
 function! s:reset() abort
+  if get(s:, 'registering', 0) > 0
+    " The window the prompt belongs to is entered again.
+    return
+  endif
   if goda#is_running('skk')
     call goda#notify('skk', 'reset')
   endif
+  " What reads the state sees it reset too (#15 of skkeleton.nvim).
+  let g:goda_skk#state = #{phase: '', henkanFeed: ''}
+  let [s:popup, s:pre_edit, s:pre_edit_at] = [[], '', {}]
   call s:disable()
 endfunction

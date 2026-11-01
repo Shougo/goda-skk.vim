@@ -549,6 +549,13 @@ DIFFERENCES FROM SKKELETON                                *goda-skk-skkeleton*
   (skkeleton.nvim#43): a rule of <Space> does not stop the conversion.
 - A reading on two lines of a dictionary has the candidates of both
   (skkeleton.nvim#48).
+- The pre-edit is text in the buffer: when the cursor left it (or
+  something was typed after it, |i_CTRL-R_=|), the input starts over, and
+  only its markers are removed (skkeleton.nvim#20); on the command line, all
+  of it.
+- Leaving the window resets |g:goda_skk#state| too (skkeleton.nvim#15);
+  while a word is registered, the window is not left (skkeleton.nvim#13).
+- A key of no candidate on the page keeps the list (skkeleton.nvim#14).
 - <C-g> keeps the katakana mode.
 - skkeleton-henkan-highlight and skkeleton-state-popup are built in
   (|goda-skk-highlight|, |goda-skk-state-popup|).
