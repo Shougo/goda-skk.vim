@@ -763,3 +763,83 @@ func TestRegisterWord(t *testing.T) {
 		t.Errorf("okuri: %q", s.line)
 	}
 }
+
+// Bugs of skkeleton.nvim (and skkeleton) that goda-skk had too.
+
+// #41: a rule of henkanFirst confirmed by the key after it types that key
+// once.
+func TestKanaRuleFuncThenKey(t *testing.T) {
+	s := newSim(t, Config{KanaTable: RomTable.With(Rule{From: "z", Func: "henkanFirst"})})
+	s.typ("z&")
+	if s.line != "z&" {
+		t.Errorf("z&: %q", s.line)
+	}
+}
+
+// #42: a key of a keymap goes on with the kana table when a rule starts
+// with the feed and it.
+func TestKanaRuleBeforeKeymap(t *testing.T) {
+	s := newSim(t, Config{
+		KanaTable: RomTable.With(Rule{From: "z", Kana: "ab"}, Rule{From: "z ", Kana: "　"}),
+	})
+	s.typ("z ")
+	if s.line != "　" {
+		t.Errorf("z<space>: %q", s.line)
+	}
+	s.typ("z;")
+	if s.line != "　ab▽" || s.preedit() != "▽" {
+		t.Errorf("z then a key of no rule: %q %q", s.line, s.preedit())
+	}
+}
+
+// #43: a rule of <Space> applies where it does not convert.
+func TestSpaceRule(t *testing.T) {
+	s := newSim(t, Config{KanaTable: RomTable.With(Rule{From: " ", Kana: "　"})})
+	s.typ("a ")
+	if s.line != "あ　" {
+		t.Errorf("a<space>: %q", s.line)
+	}
+	s.typ("Kanji ")
+	if s.line != "あ　▼漢字" {
+		t.Errorf("Kanji<space>: %q", s.line)
+	}
+	s.typ("<c-j>/file ")
+	if !strings.HasSuffix(s.line, "▼ファイル") {
+		t.Errorf("abbrev: %q", s.line)
+	}
+	// Without a rule: a space.
+	s = newSim(t, Config{})
+	s.typ("a b")
+	if s.line != "あ b" {
+		t.Errorf("space: %q", s.line)
+	}
+}
+
+// #12: the input started over from a pre-edit the cursor left: Vim is told
+// which (the command line removes it), and its markers are not registered.
+func TestStalePreEdit(t *testing.T) {
+	s := newSim(t, Config{})
+	s.mode = "c"
+	s.line = ""
+	s.p.c = s.p.newContext()
+	s.typ("A")
+	// <Left>
+	s.after, s.line = "あ", "▽"
+	res := s.call("handleKey", "i")
+	if res.Stale != "▽あ" {
+		t.Errorf("stale: %+v", res)
+	}
+	if res = s.call("handleKey", "u"); res.Stale != "" {
+		t.Errorf("stale again: %+v", res)
+	}
+
+	s = newSim(t, Config{})
+	s.register = func(string) string { return "▽ぬ" }
+	s.typ("Nu ")
+	if s.line != "ぬ" {
+		t.Errorf("registered: %q", s.line)
+	}
+	if got, _ := s.p.lib.user.Lookup(context.Background(), OkuriNasi, "ぬ"); !slices.Equal(got, []string{"ぬ"}) {
+		t.Errorf("learned %q", got)
+	}
+}

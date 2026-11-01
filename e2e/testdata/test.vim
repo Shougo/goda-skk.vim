@@ -105,6 +105,10 @@ function! s:run() abort
   call feedkeys(":let g:cmdline = '\<C-j>nihon\<C-j>'\<CR>", 'xt')
   call s:check('cmdline', g:cmdline, 'にほん')
   call s:check('cmdline enabled', g:goda_skk#enabled, v:false)
+  " The cursor left the pre-edit: it is not left in the command line.
+  let s:cl = ''
+  call feedkeys(":\<C-j>A\<Left>i\<Cmd>let s:cl = getcmdline()\<CR>\<C-u>\<Esc>", 'xt')
+  call s:check('cmdline stale', s:cl, 'い')
 
   " A terminal job (no cat on MS-Windows; Neovim does not enter Terminal
   " mode within feedkeys() with "x").

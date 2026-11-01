@@ -527,8 +527,15 @@ zenkaku		Full-width alphanumerics ("L").
 Default Keymaps (the other keys run kanaInput, and henkanInput while
 choosing):
 
-	input:	<BS> <C-h> deleteChar, <C-g> cancel, <CR> newline,
-		<Esc> escape, <C-j> kakutei, <C-q> hankata, > prefix
+	input:	<Space> henkanFirst, <BS> <C-h> deleteChar, <C-g> cancel,
+		<CR> newline, <Esc> escape, <C-j> kakutei, <C-q> hankata,
+		> prefix
+
+A key of a keymap goes on with the kana table when a rule starts with what
+is typed and it (a rule "z " after "z", before <Space> henkanFirst).
+<Space> converts by the keymap, not by a rule of the kana table: a rule of
+<Space> applies where nothing is converted (" " to "　" types a full-width
+space after a confirmed text, and <Space> still converts a reading).
 	henkan:	<C-g> cancel, <CR> newline, <C-j> kakutei,
 		<Space> henkanForward, x henkanBackward, X purgeCandidate,
 		> suffix
@@ -538,6 +545,10 @@ DIFFERENCES FROM SKKELETON                                *goda-skk-skkeleton*
 
 - The configuration is Go (engine.Config), not skkeleton#config().
   Dictionaries are Go values; the kana table is engine.RomTable.With(...).
+- <Space> converts by the keymap "input", not by a rule of the kana table
+  (skkeleton.nvim#43): a rule of <Space> does not stop the conversion.
+- A reading on two lines of a dictionary has the candidates of both
+  (skkeleton.nvim#48).
 - <C-g> keeps the katakana mode.
 - skkeleton-henkan-highlight and skkeleton-state-popup are built in
   (|goda-skk-highlight|, |goda-skk-state-popup|).

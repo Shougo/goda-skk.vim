@@ -19,6 +19,8 @@ const sampleJisyo = `;; -*- mode: fundamental; coding: euc-jp -*-
 かっこ /[/]/「/
 かんじ /漢字/感じ;feeling/
 かんじょう /感情/勘定/
+がいひ /該非/
+がいひ /外皮/外被/該非/
 `
 
 func TestParseJisyo(t *testing.T) {
@@ -33,6 +35,8 @@ func TestParseJisyo(t *testing.T) {
 		{OkuriNasi, "かっこ", []string{"[", "]", "「"}},
 		{OkuriNasi, "かんじ", []string{"漢字", "感じ;feeling"}},
 		{OkuriNasi, "ない", nil},
+		// On two lines: both, the first's first (#48 of skkeleton.nvim).
+		{OkuriNasi, "がいひ", []string{"該非", "外皮", "外被"}},
 	} {
 		if got := j.lookup(tc.typ, tc.word); !slices.Equal(got, tc.want) {
 			t.Errorf("%s %q: %q, want %q", tc.typ, tc.word, got, tc.want)

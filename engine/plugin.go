@@ -31,6 +31,9 @@ type Plugin struct {
 	// outer are the contexts put aside while Vim asks for a word to
 	// register (registerWord): the keys of the prompt have their own.
 	outer []outerContext
+	// stale is the pre-edit left where the cursor is no more (the input
+	// started over), for Result.Stale.
+	stale string
 	// startedOver: since the last Reading(), a key found the buffer not
 	// what the pre-edit says and started over (a completion was accepted
 	// by typing on). CompleteDone must not reset what it typed then.
@@ -132,6 +135,10 @@ type Result struct {
 	Restore *cursorPoint `json:"restore"`
 	// MappedKeys are the keys to map, with Enable.
 	MappedKeys []string `json:"mappedKeys"`
+	// Stale is the pre-edit the input started over from, which the keys do
+	// not take back (the cursor moved): on the command line, where it is
+	// text, Vim removes it (#12 of skkeleton.nvim).
+	Stale string `json:"stale"`
 	// Register is the prompt of a word to register: Vim asks for it, then
 	// runs registerDone with it.
 	Register string `json:"register"`
@@ -195,6 +202,7 @@ func (p *Plugin) run(ctx context.Context, h sdk.Host, fn string, keys []string, 
 		if !resolved {
 			c.invalidateKakutei()
 		}
+		p.stale = c.pre.current
 		c.resetState(true, false)
 		c.pre.output("")
 		p.startedOver = true
@@ -302,7 +310,10 @@ func (p *Plugin) result(keys string) Result {
 	if c.state.kind == stateEscape {
 		pre = ""
 	}
+	stale := p.stale
+	p.stale = ""
 	return Result{
+		Stale:      stale,
 		PreEdit:    pre,
 		Restore:    restore,
 		Keys:       keys,

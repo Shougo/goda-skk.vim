@@ -161,6 +161,9 @@ function! goda_skk#handle(func, keys = []) abort
     call s:disable(r.reenable)
   endif
   call s:set_mode(r.mode)
+  if get(r, 'stale', '') !=# '' && mode() ==# 'c'
+    call s:remove_stale(r.stale)
+  endif
   let s:popup = r.popup
   let s:pre_edit = r.preEdit
   if r.register !=# ''
@@ -193,9 +196,33 @@ function! s:set_mode(mode) abort
   call s:doautocmd('goda-skk-mode-changed')
 endfunction
 
+" On the command line, the pre-edit is text: where it starts, to remove it
+" when the cursor left it (it is in the command line, not before the cursor).
+function! s:remove_stale(stale) abort
+  let at = get(s:, 'cmd_pre_edit', {})
+  let line = getcmdline()
+  if get(at, 'text', '') !=# a:stale
+        \ || strpart(line, at.start - 1, strlen(a:stale)) !=# a:stale
+    return
+  endif
+  let len = strlen(a:stale)
+  let pos = getcmdpos()
+  if pos >= at.start + len
+    let pos -= len
+  elseif pos > at.start
+    let pos = at.start
+  endif
+  call setcmdline(strpart(line, 0, at.start - 1) . strpart(line, at.start - 1 + len), pos)
+  let s:cmd_pre_edit = {}
+endfunction
+
 " After the keys were typed: the list of candidates, the highlight of the
 " pre-edit, User goda-skk-handled.
 function! goda_skk#_handled() abort
+  if mode() ==# 'c'
+    let pre_edit = get(s:, 'pre_edit', '')
+    let s:cmd_pre_edit = #{text: pre_edit, start: getcmdpos() - strlen(pre_edit)}
+  endif
   call goda_skk#popup#close()
   call goda_skk#highlight#clear()
   if g:goda_skk#enabled

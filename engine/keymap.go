@@ -16,14 +16,18 @@ type keymap struct {
 func defaultKeymaps() map[string]keymap {
 	return map[string]keymap{
 		"input": {def: "kanaInput", keys: map[string]string{
-			"<bs>":  "deleteChar",
-			"<c-h>": "deleteChar",
-			"<c-g>": "cancel",
-			"<cr>":  "newline",
-			"<esc>": "escape",
-			"<c-j>": "kakutei",
-			"<c-q>": "hankata",
-			">":     "prefix",
+			// Not a rule of the kana table, which may make <Space> a
+			// full-width space for what is not a reading (#43 of
+			// skkeleton.nvim).
+			"<space>": "henkanFirst",
+			"<bs>":    "deleteChar",
+			"<c-h>":   "deleteChar",
+			"<c-g>":   "cancel",
+			"<cr>":    "newline",
+			"<esc>":   "escape",
+			"<c-j>":   "kakutei",
+			"<c-q>":   "hankata",
+			">":       "prefix",
 		}},
 		"henkan": {def: "henkanInput", keys: map[string]string{
 			"<c-g>":   "cancel",
@@ -96,6 +100,12 @@ func handleKey(c *Context, key string) {
 	fn, ok := km.keys[key]
 	if !ok {
 		fn = km.def
+	}
+	if s := &c.state; ok && s.kind == stateInput && s.feed != "" && s.table.hasPrefix(s.feed+keyChar(key)) {
+		// The kana table goes on with the key ("z" then <Space> of a rule
+		// "z "): before what the key is mapped to (#42 of
+		// skkeleton.nvim).
+		fn = "kanaInput"
 	}
 	functions[fn](c, key)
 }

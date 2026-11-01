@@ -103,7 +103,12 @@ func acceptResult(c *Context, r Rule, feed string) {
 		return
 	}
 	c.state.feed = ""
+	// The keys of a rule are not typed through the table again (a rule
+	// "z" of henkanFirst types "z" where there is nothing to convert).
+	prev := c.inHenkanFirst
+	c.inHenkanFirst = true
 	functions[r.Func](c, feed)
+	c.inHenkanFirst = prev
 }
 
 // kanaInput types the key through the kana table.
@@ -139,7 +144,9 @@ func kanaInput(c *Context, key string) {
 		// The feed cannot go on: it is confirmed as it is, and the key
 		// typed again.
 		if r, ok := s.table.find(s.feed); ok {
-			acceptResult(c, r, next)
+			// Its own keys: the key is typed again below (a function
+			// given it too would type it twice, #41 of skkeleton.nvim).
+			acceptResult(c, r, s.feed)
 		} else if c.cfg.AcceptIllegalResult {
 			kakuteiKana(c, s.feed, "")
 		} else {
@@ -386,6 +393,13 @@ func registerWord(c *Context) bool {
 func registerDone(c *Context, word string) {
 	r := c.register
 	c.register = nil
+	// The markers of a pre-edit left in the prompt are not the word (#12
+	// of skkeleton.nvim).
+	for _, m := range []string{*c.cfg.MarkerHenkan, *c.cfg.MarkerHenkanSelect} {
+		if m != "" {
+			word = strings.ReplaceAll(word, m, "")
+		}
+	}
 	if r == nil || word == "" {
 		return
 	}

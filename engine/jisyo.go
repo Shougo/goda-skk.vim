@@ -62,7 +62,19 @@ func parseJisyo(text string) *jisyo {
 		if !ok || !strings.HasPrefix(rest, "/") {
 			continue
 		}
-		cur[word] = splitCandidates(rest, ari)
+		cands := splitCandidates(rest, ari)
+		if prev, ok := cur[word]; ok {
+			// A reading on two lines (がいひ of SKK-JISYO.L): the
+			// candidates of both, the first line's first (#48 of
+			// skkeleton.nvim).
+			for _, c := range cands {
+				if !slices.Contains(prev, c) {
+					prev = append(prev, c)
+				}
+			}
+			cands = prev
+		}
+		cur[word] = cands
 	}
 	j.index()
 	return j

@@ -110,8 +110,11 @@ func (t *KanaTable) onlyFunc(fn string) *KanaTable {
 
 // The tables of this package: "rom" (romaji to hiragana) and "zen" (ASCII
 // to full-width, the zenkaku mode).
+// The conversion of <Space> is not in them: it is the keymap "input"
+// (<space> to henkanFirst), and a rule of <Space> applies where it does not
+// convert.
 var (
-	RomTable = NewKanaTable(romHira...)
+	RomTable = NewKanaTable(romHira...).With(Rule{From: " "})
 	ZenTable = NewKanaTable(romZen...)
 )
 
