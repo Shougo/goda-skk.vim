@@ -34,7 +34,6 @@ type Completion struct {
 func (p *Plugin) Reading() (Reading, bool) {
 	p.mu.Lock()
 	defer p.mu.Unlock()
-	p.startedOver = false
 	c := p.c
 	s := &c.state
 	if s.kind != stateInput || s.mode != modeOkuriNasi || c.disable {

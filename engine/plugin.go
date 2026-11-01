@@ -35,9 +35,11 @@ type Plugin struct {
 	// started over), for Result.Stale; staleText is its text without the
 	// markers, for Result.StaleText.
 	stale, staleText string
-	// startedOver: since the last Reading(), a key found the buffer not
-	// what the pre-edit says and started over (a completion was accepted
-	// by typing on). CompleteDone must not reset what it typed then.
+	// startedOver: a key found the buffer not what the pre-edit says and
+	// started over while a completion was shown (it was accepted by typing
+	// on), since the last CompleteDone, which must not reset what the key
+	// typed then. (Not since the last Reading(): the key typed has the
+	// completion gather again, maybe before it tells it was done.)
 	startedOver bool
 }
 
@@ -214,7 +216,9 @@ func (p *Plugin) run(ctx context.Context, h sdk.Host, fn string, keys []string, 
 		p.stale, p.staleText = c.pre.current, c.state.bareText()
 		c.resetState(true, false)
 		c.pre.output("")
-		p.startedOver = true
+		if st.PumVisible {
+			p.startedOver = true
+		}
 	}
 	if fn == "toggle" {
 		fn = "enable"

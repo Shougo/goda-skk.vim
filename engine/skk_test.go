@@ -69,6 +69,8 @@ type sim struct {
 	after string
 	// register answers the prompt of registerWord.
 	register func(prompt string) string
+	// pum: the popup menu of a completion is shown.
+	pum bool
 }
 
 func newSim(t *testing.T, cfg Config) *sim {
@@ -136,6 +138,7 @@ func (s *sim) call(fn string, keys ...string) Result {
 	s.p.mu.Lock()
 	res, err := s.p.run(context.Background(), s, fn, keys, Status{
 		Mode: s.mode, PrevInput: prev, Bufnr: 1, Lnum: lnum, Selected: -1,
+		PumVisible: s.pum,
 	}, s.on)
 	s.p.mu.Unlock()
 	if err != nil {

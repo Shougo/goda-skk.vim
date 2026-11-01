@@ -98,7 +98,9 @@ func TestCompleteDoneAfterKey(t *testing.T) {
 	// The completion is accepted by typing on: the key is handled before
 	// the completion tells.
 	s.line = "感じ"
+	s.pum = true
 	s.typ("d")
+	s.pum = false
 	s.p.CompleteDone(ctx, s, OkuriNasi, "かんじ", "感じ", "感じ")
 	s.typ("esu")
 	if s.line != "感じです" {
@@ -110,7 +112,9 @@ func TestCompleteDoneAfterKey(t *testing.T) {
 	// Typing on with a new reading.
 	s.typ("Kan")
 	s.line = "感じです感じ"
+	s.pum = true
 	s.typ("O")
+	s.pum = false
 	s.p.CompleteDone(ctx, s, OkuriNasi, "かんじ", "感じ", "感じ")
 	s.typ("ku")
 	if s.line != "感じです感じ▽おく" {
@@ -126,10 +130,43 @@ func TestCompleteDoneAfterKeys(t *testing.T) {
 	s.line = "感じ"
 	// Two keys before the completion tells: a reading the completed one
 	// starts with.
-	s.typ("Ka")
+	s.pum = true
+	s.typ("K")
+	s.pum = false
+	s.typ("a")
 	s.p.CompleteDone(ctx, s, OkuriNasi, "かんじ", "感じ", "感じ")
 	s.typ("ku")
 	if s.line != "感じ▽かく" || s.preedit() != "▽かく" {
 		t.Errorf("the reading is lost: %q %q", s.line, s.preedit())
+	}
+}
+
+// The key typed on has the completion gather again before it tells it was
+// done: what the key typed stays (jj after a completion was "jj").
+func TestCompleteDoneAfterGather(t *testing.T) {
+	s := newSim(t, Config{KanaTable: RomTable.With(Rule{From: "jj", Func: "escape"})})
+	ctx := context.Background()
+	s.typ("Ni")
+	s.p.Reading()
+	s.line = "日本"
+	s.pum = true
+	s.typ("j")
+	s.pum = false
+	if _, ok := s.p.Reading(); ok {
+		t.Error("a reading")
+	}
+	s.p.CompleteDone(ctx, s, OkuriNasi, "にほん", "日本", "日本")
+	s.typ("j")
+	if s.line != "日本" || s.res.Phase != "escape" {
+		t.Errorf("jj: %q %q", s.line, s.res.Phase)
+	}
+	// A completion accepted without typing on resets the reading.
+	s = newSim(t, Config{})
+	s.typ("Ni")
+	s.p.Reading()
+	s.line = "日本"
+	s.p.CompleteDone(ctx, s, OkuriNasi, "にほん", "日本", "日本")
+	if got := s.p.c.state.phase(); got != "input" {
+		t.Errorf("accepted: %q", got)
 	}
 }
