@@ -108,6 +108,17 @@ function! s:run() abort
   call feedkeys("2Gi\<C-j>\<C-x>\<C-n>\<Cmd>sleep 20m\<CR>"
         \ . "\<Cmd>let s:sp = [s:popup_col(), screenpos(0, 2, col('.')).col]\<CR>\<C-e>\<Esc>", 'xt')
   call s:check('state popup completion', s:sp, [3, 3])
+  " Scrolled (WinScrolled comes when Vim waits for a key).
+  call setline(1, ['a', 'b', 'c'])
+  call feedkeys("2GA\<C-j>\<C-x>\<C-e>\<Cmd>doautocmd <nomodeline> WinScrolled\<CR>"
+        \ . "\<Cmd>let s:sp = [s:popup_row(), screenpos(0, 2, col('.')).row]\<CR>\<C-j>\<Esc>", 'xt')
+  call s:check('state popup scrolled', s:sp, [2, 1])
+  " Replace mode: neither the input method nor the popup.
+  %delete _
+  call feedkeys("i\<C-j>Kan\<Insert>a"
+        \ . "\<Cmd>let s:sp = [mode(), g:goda_skk#enabled, s:popup_lines()]\<CR>\<Esc>", 'xt')
+  call s:check('replace mode', s:sp, ['R', v:false, []])
+  call s:check('replace mode line', getline(1), 'かna')
   call goda_skk#state_popup#disable()
 
   " The command line.
@@ -119,6 +130,11 @@ function! s:run() abort
   let s:cl = ''
   call feedkeys(":\<C-j>A\<Left>i\<Cmd>let s:cl = getcmdline()\<CR>\<C-u>\<Esc>", 'xt')
   call s:check('cmdline stale', s:cl, 'い')
+  " Another window: the input is reset, and the pre-edit goes.
+  new
+  call feedkeys(":\<C-j>K\<Cmd>wincmd w\<CR>\<Cmd>let s:cl = getcmdline()\<CR>\<C-u>\<Esc>", 'xt')
+  call s:check('cmdline other window', [s:cl, g:goda_skk#enabled], ['', v:false])
+  only!
 
   " The pre-edit left in insert mode: its markers go (and an expression
   " typed after it does not take it back).
@@ -127,6 +143,17 @@ function! s:run() abort
   call setline(1, 'ab cd')
   call feedkeys("0i\<C-j>O\<C-r>=1\<CR>a\<Esc>", 'xt')
   call s:check('insert stale expression', getline(1), 'お1あab cd')
+  " Insert mode left with <C-c>: the input is reset.
+  call setline(1, 'ab')
+  call feedkeys("A\<C-j>Kan\<C-c>", 'xt')
+  call s:check('<C-c>', [getline(1), col('.'), g:goda_skk#enabled], ['abかn', 6, v:false])
+
+  " A macro: the keys typed, not what they typed.
+  call setline(1, ['ab', 'cd'])
+  call feedkeys("ggqaA\<C-j>Kanji \<C-j>\<Esc>qj@a", 'xt')
+  call s:check('macro', getline(1, '$'), ['ab関知', 'cd関知'])
+  call s:check('macro register', getreg('a'), "A\<C-j>Kanji \<C-j>\<Esc>")
+  %delete _
 
   " Another window: the input is reset, and so is the state.
   %delete _
@@ -200,6 +227,17 @@ function! s:highlights() abort
           \ {_, m -> [m[2] + 1, m[3].end_col - m[2], m[3].hl_group]})
   endif
   return map(prop_list(1), {_, p -> [p.col, p.length, p.type]})
+endfunction
+
+" The screen row of the popup.
+function! s:popup_row() abort
+  redraw
+  if has('nvim')
+    let wins = filter(nvim_list_wins(), 'nvim_win_get_config(v:val).relative !=# ""')
+    return empty(wins) ? 0 : nvim_win_get_position(wins[0])[0] + 1
+  endif
+  let ids = popup_list()
+  return empty(ids) ? 0 : popup_getpos(ids[0]).line
 endfunction
 
 " The screen column of the popup.

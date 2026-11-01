@@ -166,6 +166,7 @@ function! goda_skk#handle(func, keys = []) abort
   endif
   let s:popup = r.popup
   let s:pre_edit = r.preEdit
+  let s:pre_edit_text = get(r, 'preEditText', '')
   if r.register !=# ''
     " After the keys: ask for the word to register.
     let s:register_prompt = r.register
@@ -176,7 +177,10 @@ function! goda_skk#handle(func, keys = []) abort
     let keys .= printf("\<Cmd>call goda_skk#_restore_point(%d, %d)\<CR>",
           \ r.restore.lnum, r.restore.col)
   endif
-  call feedkeys(keys . "\<Cmd>call goda_skk#_handled()\<CR>", 'nit')
+  " Not typed while a macro is recorded: the keys typed are, and they type
+  " these again (#36 of skkeleton.nvim).
+  call feedkeys(keys . "\<Cmd>call goda_skk#_handled()\<CR>",
+        \ reg_recording() ==# '' ? 'nit' : 'ni')
   return ''
 endfunction
 
@@ -197,23 +201,29 @@ function! s:set_mode(mode) abort
 endfunction
 
 " The pre-edit is text: when the input started over from {stale} (the cursor
-" left it, or something else was typed after it), it is not before the
-" cursor any more. Where it still is, the command line loses it; insert mode
-" keeps {text} of it, without the markers (what was typed after it, a
-" completion that appended to it, say, belongs with it).
+" left it, or something else was typed after it), or was reset (another
+" window, insert mode left with <C-c>), it is not the input any more. Where
+" it still is, the command line loses it; insert mode keeps {text} of it,
+" without the markers (what was typed after it, a completion that appended
+" to it, say, belongs with it).
 function! s:remove_stale(stale, text) abort
   let at = get(s:, 'pre_edit_at', {})
   let s:pre_edit_at = {}
-  if get(at, 'text', '') !=# a:stale
+  if a:stale ==# '' || get(at, 'text', '') !=# a:stale
     return
   endif
-  if at.mode ==# 'c' && mode() ==# 'c' && getcmdtype() ==# at.cmdtype
+  let mode = mode()
+  if at.mode ==# 'c' && mode ==# 'c' && getcmdtype() ==# at.cmdtype
     let [line, pos, keep] = [getcmdline(), getcmdpos(), '']
-  elseif at.mode ==# 'i' && mode() =~# '^i' && !pumvisible()
+  elseif at.mode ==# 'i' && mode =~# '^[iRn]' && !pumvisible()
         \ && !(exists('*pum#visible') && pum#visible())
         \ && bufnr('%') == at.bufnr && line('.') == at.lnum
-    " (Not under a completion, which knows where its text starts.)
+    " (Not under a completion, which knows where its text starts.) Insert
+    " mode just left: the cursor is on the character before.
     let [line, pos, keep] = [getline('.'), col('.'), a:text]
+    if mode ==# 'n'
+      let pos += strlen(matchstr(line, '\%' . pos . 'c.'))
+    endif
   else
     return
   endif
@@ -232,10 +242,13 @@ function! s:remove_stale(stale, text) abort
   let line = strpart(line, 0, at.start - 1) . keep . strpart(line, at.start - 1 + len)
   if at.mode ==# 'c'
     call setcmdline(line, pos)
-  else
-    call setline('.', line)
-    call cursor(line('.'), pos)
+    return
   endif
+  call setline('.', line)
+  if mode ==# 'n' && pos > 1
+    let pos -= strlen(matchstr(strpart(line, 0, pos - 1), '.$'))
+  endif
+  call cursor(line('.'), pos)
 endfunction
 
 " After the keys were typed: the list of candidates, the highlight of the
@@ -279,7 +292,7 @@ endfunction
 " A completion (goda-skk.vim/cmp/source/...) replaced the pre-edit.
 function! goda_skk#_complete_done(phase) abort
   let g:goda_skk#state = #{phase: a:phase, henkanFeed: ''}
-  let [s:popup, s:pre_edit] = [[], '']
+  let [s:popup, s:pre_edit, s:pre_edit_text] = [[], '', '']
   call goda_skk#popup#close()
   call goda_skk#highlight#clear()
   if g:goda_skk#enabled
@@ -304,7 +317,8 @@ endfunction
 function! goda_skk#_register_word() abort
   let outer = #{enabled: g:goda_skk#enabled, mode: g:goda_skk#mode,
         \ state: g:goda_skk#state, enabled_mode: get(s:, 'enabled_mode', 'i'),
-        \ popup: get(s:, 'popup', []), pre_edit: get(s:, 'pre_edit', '')}
+        \ popup: get(s:, 'popup', []), pre_edit: get(s:, 'pre_edit', ''),
+        \ pre_edit_text: get(s:, 'pre_edit_text', '')}
   call goda_skk#popup#close()
   let g:goda_skk#enabled = v:false
   augroup goda_skk_enabled
@@ -343,7 +357,8 @@ function! goda_skk#_register_word() abort
     let g:goda_skk#enabled = outer.enabled
     let g:goda_skk#state = outer.state
     let s:enabled_mode = outer.enabled_mode
-    let [s:popup, s:pre_edit] = [outer.popup, outer.pre_edit]
+    let [s:popup, s:pre_edit, s:pre_edit_text] =
+          \ [outer.popup, outer.pre_edit, outer.pre_edit_text]
     if outer.enabled
       call s:autocmds()
       " What the prompt's disabling undid (the sources of a completion,
@@ -423,6 +438,9 @@ function! s:autocmds() abort
     " Leaving insert mode, the command line or the terminal job ends the
     " input.
     autocmd ModeChanged *:n,*:nt call s:reset()
+    " Replace mode (<Insert>) is not for the input method (#29 of
+    " skkeleton.nvim).
+    autocmd ModeChanged i*:R* call s:reset()
     autocmd WinLeave * call s:reset()
   augroup END
 endfunction
@@ -455,8 +473,11 @@ function! s:reset() abort
   if goda#is_running('skk')
     call goda#notify('skk', 'reset')
   endif
+  " The pre-edit is not the input any more (#27, #29, #46 of
+  " skkeleton.nvim).
+  call s:remove_stale(get(s:, 'pre_edit', ''), get(s:, 'pre_edit_text', ''))
   " What reads the state sees it reset too (#15 of skkeleton.nvim).
   let g:goda_skk#state = #{phase: '', henkanFeed: ''}
-  let [s:popup, s:pre_edit, s:pre_edit_at] = [[], '', {}]
+  let [s:popup, s:pre_edit, s:pre_edit_text, s:pre_edit_at] = [[], '', '', {}]
   call s:disable()
 endfunction

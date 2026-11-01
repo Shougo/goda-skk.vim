@@ -57,6 +57,9 @@ func (l *library) lookup(ctx context.Context, typ HenkanType, word string) []str
 	seen := map[string]bool{}
 	add := func(cs []string) {
 		for _, c := range cs {
+			// As the user dictionary writes it: the same candidate of
+			// another dictionary is the same.
+			c = normalizeCandidate(c)
 			if !seen[c] {
 				seen[c] = true
 				out = append(out, c)
@@ -105,6 +108,7 @@ func (l *library) complete(ctx context.Context, prefixes []string) []Entry {
 					i = len(out) - 1
 				}
 				for _, c := range e.Candidates {
+					c = normalizeCandidate(c)
 					if !slices.Contains(out[i].Candidates, c) {
 						out[i].Candidates = append(out[i].Candidates, c)
 					}
@@ -125,7 +129,7 @@ func (l *library) report(err error) {
 // learn puts candidate first for word in the user dictionary.
 func (l *library) learn(typ HenkanType, word, candidate string) {
 	if l.user != nil && candidate != "" {
-		l.user.Register(typ, word, candidate)
+		l.user.Register(typ, word, normalizeCandidate(candidate))
 	}
 }
 

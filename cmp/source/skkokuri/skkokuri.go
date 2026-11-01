@@ -46,7 +46,7 @@ func (s source) Gather(ctx context.Context, _ sdk.Host, c *cmp.Context) (cmp.Gat
 	}
 	g.Start = len(c.Input) - len(r.PreEdit)
 	for _, oc := range s.p.CompleteOkuri(ctx, r) {
-		word, note, _ := strings.Cut(oc.Candidate, ";")
+		word, note := engine.CandidateWord(oc.Candidate)
 		g.Items = append(g.Items, cmp.Item{
 			Word: word + oc.Okuri,
 			Info: note,

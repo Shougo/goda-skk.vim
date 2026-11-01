@@ -23,6 +23,9 @@ function! goda_skk#state_popup#enable() abort
     " CursorMovedI (#18 of skkeleton.nvim). (Neovim does not change windows
     " in CompleteChanged: right after it.)
     autocmd TextChangedP * call s:update()
+    " Scrolled: the cursor is elsewhere on the screen (#30 of
+    " skkeleton.nvim).
+    autocmd WinScrolled * call s:update()
     if has('nvim')
       autocmd CompleteChanged * call timer_start(0, {-> s:update()})
     else
@@ -54,6 +57,9 @@ function! s:update() abort
   " After the keys of the event were typed: the cursor is where they left
   " it.
   if mode() !~# '^i'
+    " Not in insert mode (Replace mode, say): not shown (#29 of
+    " skkeleton.nvim).
+    call s:close()
     return
   endif
   let label = s:label()

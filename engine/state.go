@@ -105,12 +105,10 @@ func (s *state) reset(table *KanaTable, keepConverter, keepTable bool) {
 	}
 }
 
-// candidate is the candidate shown: without its annotation, and without
-// the ">" of an affix.
+// candidateText is the candidate shown: without its annotation, (concat
+// "...") decoded, and without the ">" of an affix.
 func candidateText(c string, a affix) string {
-	if i := strings.IndexByte(c, ';'); i >= 0 {
-		c = c[:i]
-	}
+	c, _ = CandidateWord(c)
 	switch a {
 	case affixPrefix:
 		c = strings.TrimSuffix(c, ">")

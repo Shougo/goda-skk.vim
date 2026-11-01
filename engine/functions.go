@@ -554,14 +554,17 @@ func toKana(c *Context, conv converter, mode string) {
 		return
 	}
 	if s.mode == modeDirect {
+		// From full-width ASCII: kana again, with the kana table (#40 of
+		// skkeleton.nvim).
+		if c.table == c.cfg.ZenkakuTable {
+			c.table = c.cfg.KanaTable
+			s.table = c.table
+			s.converter = convNone
+		}
 		if s.converter == conv {
 			s.converter = convNone
 			c.modeChange(ModeHira)
 			return
-		}
-		if conv == convHankata && c.table == c.cfg.ZenkakuTable {
-			c.table = c.cfg.KanaTable
-			s.table = c.table
 		}
 		s.converter = conv
 		c.modeChange(mode)
@@ -592,6 +595,7 @@ func zenkaku(c *Context, _ string) {
 	}
 	c.table = c.cfg.ZenkakuTable
 	s.table = c.table
+	s.converter = convNone
 	c.modeChange(ModeZenkaku)
 }
 

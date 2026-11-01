@@ -132,6 +132,10 @@ type Result struct {
 	Reenable bool `json:"reenable"`
 	// PreEdit is the pre-edit after the keys: it ends at the cursor.
 	PreEdit string `json:"preEdit"`
+	// PreEditText is PreEdit without the markers: in insert mode, what
+	// Vim leaves of it when the input is reset (leaving insert mode with
+	// <C-c>, say).
+	PreEditText string `json:"preEditText"`
 	// Restore is where to put the cursor after the keys (kakuteiUndo).
 	Restore *cursorPoint `json:"restore"`
 	// MappedKeys are the keys to map, with Enable.
@@ -317,24 +321,25 @@ func (p *Plugin) result(keys string) Result {
 	if c.hasPendingInput() {
 		restore = nil
 	}
-	pre := c.pre.current
-	if c.state.kind == stateEscape {
-		pre = ""
+	pre, preText := c.pre.current, c.state.bareText()
+	if c.state.kind == stateEscape || pre == "" {
+		pre, preText = "", ""
 	}
 	stale, staleText := p.stale, p.staleText
 	p.stale, p.staleText = "", ""
 	return Result{
-		Stale:      stale,
-		StaleText:  staleText,
-		PreEdit:    pre,
-		Restore:    restore,
-		Keys:       keys,
-		Mode:       mode,
-		Phase:      c.state.phase(),
-		HenkanFeed: c.state.henkanFeed,
-		Popup:      c.popup,
-		Disable:    c.disable,
-		Reenable:   c.reenable,
+		Stale:       stale,
+		StaleText:   staleText,
+		PreEdit:     pre,
+		PreEditText: preText,
+		Restore:     restore,
+		Keys:        keys,
+		Mode:        mode,
+		Phase:       c.state.phase(),
+		HenkanFeed:  c.state.henkanFeed,
+		Popup:       c.popup,
+		Disable:     c.disable,
+		Reenable:    c.reenable,
 	}
 }
 

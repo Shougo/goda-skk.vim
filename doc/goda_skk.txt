@@ -552,7 +552,15 @@ DIFFERENCES FROM SKKELETON                                *goda-skk-skkeleton*
 - The pre-edit is text in the buffer: when the cursor left it (or
   something was typed after it, |i_CTRL-R_=|), the input starts over, and
   only its markers are removed (skkeleton.nvim#20); on the command line, all
-  of it.
+  of it.  So it is when the input is reset: another window, insert mode left
+  with |i_CTRL-C| (skkeleton.nvim#27, #46).
+- Replace mode (|i_<Insert>|) disables it (skkeleton.nvim#29).
+- What it types is not recorded in a macro: the keys typed type it again
+  (skkeleton.nvim#36).
+- A candidate with "/" is (concat "...") in a dictionary: read, and written
+  so in the user dictionary (skkeleton.nvim#37).
+- <C-q> in the full-width ASCII mode is half-width katakana with the kana
+  table (skkeleton.nvim#40).
 - Leaving the window resets |g:goda_skk#state| too (skkeleton.nvim#15);
   while a word is registered, the window is not left (skkeleton.nvim#13).
 - A key of no candidate on the page keeps the list (skkeleton.nvim#14).

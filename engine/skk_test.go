@@ -50,6 +50,8 @@ var testDict = memDict{
 		"#ねん":    {"#1年", "#3年"},
 		"ちょう>":   {"超"},
 		">てき":    {"的"},
+		"あお":     {`(concat "and\057or")`},
+		"ばい":     {"a/b"},
 	},
 }
 
@@ -847,5 +849,72 @@ func TestStalePreEdit(t *testing.T) {
 	}
 	if got, _ := s.p.lib.user.Lookup(context.Background(), OkuriNasi, "ぬ"); !slices.Equal(got, []string{"ぬ"}) {
 		t.Errorf("learned %q", got)
+	}
+}
+
+// A candidate with "/" in a dictionary is (concat "...") (#37 of
+// skkeleton.nvim).
+func TestConcat(t *testing.T) {
+	s := newSim(t, Config{})
+	s.typ("Ao ")
+	if got := s.preedit(); got != "▼and/or" {
+		t.Errorf("concat: %q", got)
+	}
+	s.typ("<c-j>")
+	if s.line != "and/or" {
+		t.Errorf("confirmed: %q", s.line)
+	}
+	// Learned as the dictionaries write it; one of another dictionary
+	// without it is the same candidate.
+	s.line = ""
+	s.typ("Bai <c-j>")
+	if s.line != "a/b" {
+		t.Errorf("a/b: %q", s.line)
+	}
+	b, _ := os.ReadFile(s.p.cfg.UserDictionary)
+	if !strings.Contains(string(b), `あお /(concat "and\057or")/`) ||
+		!strings.Contains(string(b), `ばい /(concat "a\057b")/`) {
+		t.Errorf("user dictionary:\n%s", b)
+	}
+	if got := s.p.Lookup(context.Background(), OkuriNasi, "ばい"); !slices.Equal(got, []string{`(concat "a\057b")`}) {
+		t.Errorf("once: %q", got)
+	}
+	// A word registered with "/", read again.
+	s.register = func(string) string { return "km/h" }
+	s.line = ""
+	s.typ("Zisoku ")
+	u := NewUserDictionary(s.p.cfg.UserDictionary)
+	if got, _ := u.Lookup(context.Background(), OkuriNasi, "じそく"); len(got) != 1 || candidateText(got[0], affixNone) != "km/h" {
+		t.Errorf("registered: %q (%q)", got, s.line)
+	}
+
+	for in, want := range map[string]string{
+		`(concat "a\\b\"c")`:   `a\b"c`,
+		`(concat "x" "\073y")`: "x;y",
+		`(concat "broken`:      `(concat "broken`,
+		"plain":                "plain",
+	} {
+		if got, _ := CandidateWord(in); got != want {
+			t.Errorf("%s: %q, want %q", in, got, want)
+		}
+	}
+	if got := normalizeCandidate(`(concat "x`); decodeConcat(got) != `(concat "x` {
+		t.Errorf("looking like one: %q", got)
+	}
+}
+
+// From full-width ASCII, <C-q> and katakana type what the mode says (#40
+// of skkeleton.nvim).
+func TestKanaFromZenkaku(t *testing.T) {
+	for keys, want := range map[string][2]string{
+		"<c-q>L<c-q>a&": {"ｱ&", ModeHankata},
+		"L<c-q>a":       {"ｱ", ModeHankata},
+		"<c-q>La":       {"ａ", ModeZenkaku},
+	} {
+		s := newSim(t, Config{})
+		s.typ(keys)
+		if s.line != want[0] || s.res.Mode != want[1] {
+			t.Errorf("%s: %q %q, want %q", keys, s.line, s.res.Mode, want)
+		}
 	}
 }

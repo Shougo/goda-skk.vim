@@ -68,7 +68,7 @@ func (s source) Gather(ctx context.Context, _ sdk.Host, c *cmp.Context) (cmp.Gat
 	}
 	g.Start = len(c.Input) - len(r.PreEdit)
 	for _, co := range s.p.Complete(ctx, r) {
-		word, note, _ := strings.Cut(co.Candidate, ";")
+		word, note := engine.CandidateWord(co.Candidate)
 		if word == "" {
 			continue
 		}

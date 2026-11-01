@@ -7,6 +7,7 @@ import (
 	"os"
 	"regexp"
 	"slices"
+	"strconv"
 	"strings"
 	"sync"
 	"unicode/utf8"
@@ -237,3 +238,99 @@ var (
 	_ Dictionary  = (*Jisyo)(nil)
 	_ Initializer = (*Jisyo)(nil)
 )
+
+// A candidate with "/" (which separates the candidates) is written
+// (concat "a\057b") in a dictionary: Emacs Lisp, of which SKK knows only
+// this (#37 of skkeleton.nvim).
+const concatPrefix = `(concat "`
+
+// CandidateWord is the word of a candidate of a dictionary and its
+// annotation (after ";"), each without (concat "...").
+func CandidateWord(c string) (word, note string) {
+	word, note, _ = strings.Cut(c, ";")
+	return decodeConcat(word), decodeConcat(note)
+}
+
+// decodeConcat is s, or the string of (concat "..." ...) with its escapes
+// ("\057", "\"", "\\").
+func decodeConcat(s string) string {
+	if !strings.HasPrefix(s, concatPrefix) || !strings.HasSuffix(s, ")") {
+		return s
+	}
+	rest := strings.TrimSpace(s[len("(concat") : len(s)-1])
+	var b strings.Builder
+	for rest != "" {
+		if rest[0] != '"' {
+			return s
+		}
+		i := 1
+		for ; i < len(rest) && rest[i] != '"'; i++ {
+			if rest[i] != '\\' || i+1 >= len(rest) {
+				b.WriteByte(rest[i])
+				continue
+			}
+			i++
+			if n := octal(rest[i:]); n > 0 {
+				v, _ := strconv.ParseUint(rest[i:i+n], 8, 8)
+				b.WriteByte(byte(v))
+				i += n - 1
+				continue
+			}
+			switch rest[i] {
+			case 'n':
+				b.WriteByte('\n')
+			case 't':
+				b.WriteByte('\t')
+			default:
+				b.WriteByte(rest[i])
+			}
+		}
+		if i >= len(rest) {
+			return s
+		}
+		rest = strings.TrimSpace(rest[i+1:])
+	}
+	return b.String()
+}
+
+// octal is the number of octal digits (3 at most) s starts with.
+func octal(s string) int {
+	n := 0
+	for n < len(s) && n < 3 && s[n] >= '0' && s[n] <= '7' {
+		n++
+	}
+	return n
+}
+
+// encodeConcat is s written as (concat "...") when it has to be: with "/",
+// or looking like one.
+func encodeConcat(s string) string {
+	if !strings.Contains(s, "/") && !strings.HasPrefix(s, concatPrefix) {
+		return s
+	}
+	r := strings.NewReplacer(`\`, `\\`, `"`, `\"`, "/", `\057`, ";", `\073`)
+	return concatPrefix + r.Replace(s) + `")`
+}
+
+// normalizeCandidate is a candidate as a dictionary writes it: its word and
+// annotation with "/" in (concat "..."). (An okuri block of a user
+// dictionary, "[る/走/]", is as it is.)
+func normalizeCandidate(c string) string {
+	if strings.HasPrefix(c, "[") && strings.HasSuffix(c, "]") {
+		return c
+	}
+	word, note, ok := strings.Cut(c, ";")
+	if !ok {
+		return encodeField(word)
+	}
+	return encodeField(word) + ";" + encodeField(note)
+}
+
+// encodeField is a word or an annotation as a dictionary writes it.
+func encodeField(s string) string {
+	if strings.HasPrefix(s, concatPrefix) && decodeConcat(s) != s {
+		// Written so already.
+		return s
+	}
+	return encodeConcat(s)
+}
