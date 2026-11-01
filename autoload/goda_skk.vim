@@ -122,16 +122,26 @@ function! s:status() abort
     let prev = getline('.')[: col('.') - 2]
   endif
   let [visible, selected, confirm] = [v:false, -1, '']
-  if exists('*pum#visible') && pum#visible()
-    let info = pum#complete_info()
-    let [visible, selected] = [v:true, get(info, 'selected', -1)]
-    let confirm = "\<Cmd>call pum#map#confirm()\<CR>"
-  elseif mode ==# 'i' && pumvisible()
-    let [visible, selected] = [v:true, complete_info(['selected']).selected]
-    let confirm = "\<C-y>"
+  if s:completion('visible', v:false)
+    let [visible, selected] = [v:true, s:completion('selected', -1)]
+    let confirm = s:completion('confirm', '')
   endif
   return #{mode: mode, prevInput: prev, bufnr: bufnr('%'), lnum: line('.'),
         \ pumVisible: visible, selected: selected, confirmKey: confirm}
+endfunction
+
+" The popup menu of insert mode: g:goda_skk#completion_backend.
+let s:native = #{
+      \ visible: {-> mode() =~# '^i' && pumvisible()},
+      \ selected: {-> complete_info(['selected']).selected},
+      \ confirm: {-> "\<C-y>"},
+      \ close: {-> "\<C-y>"},
+      \ }
+
+" {name} of the completion backend called, or {default} without it.
+function! s:completion(name, default) abort
+  let backend = get(g:, 'goda_skk#completion_backend', s:native)
+  return has_key(backend, a:name) ? call(backend[a:name], []) : a:default
 endfunction
 
 " Send {keys} to the plugin with {func} ("handleKey", "enable", "disable",
@@ -152,11 +162,14 @@ function! goda_skk#handle(func, keys = []) abort
     return ''
   endtry
 
+  " The completion of before is not of now: closed (#24 of skkeleton.nvim).
+  let keys = (r.enable && !g:goda_skk#enabled || r.disable)
+        \ && s:completion('visible', v:false) ? s:completion('close', '') : ''
   if r.enable && !g:goda_skk#enabled
     call s:enable(r.mappedKeys)
   endif
   let g:goda_skk#state = #{phase: r.phase, henkanFeed: r.henkanFeed}
-  let keys = r.keys
+  let keys .= r.keys
   if r.disable
     call s:disable(r.reenable)
   endif
@@ -216,7 +229,7 @@ function! s:remove_stale(stale, text) abort
   if at.mode ==# 'c' && mode ==# 'c' && getcmdtype() ==# at.cmdtype
     let [line, pos, keep] = [getcmdline(), getcmdpos(), '']
   elseif at.mode ==# 'i' && mode =~# '^[iRn]' && !pumvisible()
-        \ && !(exists('*pum#visible') && pum#visible())
+        \ && !s:completion('visible', v:false)
         \ && bufnr('%') == at.bufnr && line('.') == at.lnum
     " (Not under a completion, which knows where its text starts.) Insert
     " mode just left: the cursor is on the character before.

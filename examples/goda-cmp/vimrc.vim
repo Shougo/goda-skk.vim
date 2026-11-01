@@ -1,12 +1,20 @@
 " The Vim script of goda-skk.vim with goda-cmp.vim, translated from that of a
 " skkeleton user (see main.go for skkeleton#config() and the completion). skkeleton-state-popup and
-" skkeleton-henkan-highlight are built in; pum.vim is found by itself.
+" skkeleton-henkan-highlight are built in.
 
 " The input method is in the binary of goda-cmp.vim (main.go is the
 " goda-cmp.vim configuration, built with goda_cmp#build()).
 let g:goda_skk#binary = has('nvim')
       \ ? stdpath('cache') . '/goda-cmp/goda-cmp'
       \ : expand('~/.cache/vim/goda-cmp/goda-cmp')
+
+" The completion is pum.vim (main.go): skkeleton's completionBackend.
+let g:goda_skk#completion_backend = #{
+      \ visible: {-> pum#visible()},
+      \ selected: {-> pum#complete_info().selected},
+      \ confirm: {-> "\<Cmd>call pum#map#confirm()\<CR>"},
+      \ close: {-> "\<Cmd>call pum#close()\<CR>"},
+      \ }
 
 inoremap <C-j> <Plug>(goda-skk-toggle)
 cnoremap <C-j> <Plug>(goda-skk-toggle)

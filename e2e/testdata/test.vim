@@ -155,6 +155,25 @@ function! s:run() abort
   call feedkeys("A\<C-j>Kan\<C-c>", 'xt')
   call s:check('<C-c>', [getline(1), col('.'), g:goda_skk#enabled], ['abかn', 6, v:false])
 
+  " Enabling and disabling close the popup menu of a completion.
+  set completeopt=menuone,noinsert,noselect
+  call setline(1, ['Kanji', ''])
+  call feedkeys("2GiKan\<C-n>\<C-j>\<Cmd>let s:pm = [pumvisible(), g:goda_skk#enabled]\<CR>"
+        \ . " \<C-n>\<Cmd>let s:pm += [pumvisible()]\<CR>"
+        \ . "l\<Cmd>let s:pm += [pumvisible(), g:goda_skk#enabled]\<CR>\<Esc>", 'xt')
+  call s:check('completion closed', [s:pm, getline(2)], [[0, v:true, 1, 0, v:false], 'Kan '])
+  " Another completion.
+  let g:closed = 0
+  let g:goda_skk#completion_backend = #{visible: {-> v:true},
+        \ close: {-> "\<Cmd>let g:closed += 1\<CR>"}}
+  call s:type("\<C-j>a\<C-j>")
+  " (<Esc> disables too.)
+  call s:check('completion backend', g:closed, 2)
+  call s:type("\<C-j>la")
+  call s:check('completion backend disabled', g:closed, 4)
+  unlet g:goda_skk#completion_backend
+  set completeopt&
+
   " A macro: the keys typed, not what they typed.
   call setline(1, ['ab', 'cd'])
   call feedkeys("ggqaA\<C-j>Kanji \<C-j>\<Esc>qj@a", 'xt')
