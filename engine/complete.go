@@ -34,7 +34,6 @@ type Completion struct {
 func (p *Plugin) Reading() (Reading, bool) {
 	p.mu.Lock()
 	defer p.mu.Unlock()
-	p.startedOver = false
 	c := p.c
 	s := &c.state
 	if s.kind != stateInput || s.mode != modeOkuriNasi || c.disable {
@@ -111,6 +110,21 @@ func (p *Plugin) Lookup(ctx context.Context, typ HenkanType, word string) []stri
 	return p.lib.lookup(ctx, typ, word)
 }
 
+// typedOn reports whether the input started over (from the reading
+// startedOver) after a completion of word (typ) was inserted: the reading
+// typed then is the one the completion was for, that word starts with
+// (with okurigana, "おくr", its stem).
+func typedOn(startedOver string, typ HenkanType, word string) bool {
+	if startedOver == "" {
+		return false
+	}
+	if typ == OkuriAri {
+		_, size := utf8.DecodeLastRuneInString(word)
+		return strings.HasPrefix(startedOver, word[:len(word)-size])
+	}
+	return strings.HasPrefix(word, startedOver)
+}
+
 // CompleteDone is told that the completion inserted inserted, candidate of
 // word: it is learned, the reading typed is gone, and kakuteiUndo can take
 // it back.
@@ -140,11 +154,11 @@ func (p *Plugin) CompleteDone(ctx context.Context, h sdk.Host, typ HenkanType, w
 	}
 	// The pre-edit was replaced, unless a key typed on since replaced it
 	// already: the state is that of the key, maybe a new reading.
-	if !p.startedOver {
+	if !typedOn(p.startedOver, typ, word) {
 		c.resetState(true, false)
 		c.pre.output("")
 	}
-	p.startedOver = false
+	p.startedOver = ""
 	phase := c.state.phase()
 	p.mu.Unlock()
 	if h != nil {

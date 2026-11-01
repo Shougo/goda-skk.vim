@@ -34,10 +34,12 @@ type Plugin struct {
 	// stale is the pre-edit left where the cursor is no more (the input
 	// started over), for Result.Stale.
 	stale string
-	// startedOver: since the last Reading(), a key found the buffer not
-	// what the pre-edit says and started over (a completion was accepted
-	// by typing on). CompleteDone must not reset what it typed then.
-	startedOver bool
+	// startedOver is the reading being typed when a key found the buffer
+	// not what the pre-edit says and started over: a completion of it was
+	// accepted by typing on, and CompleteDone must not reset what the key
+	// typed then. It is kept until CompleteDone, whatever is asked
+	// meanwhile (the completion asks for the reading for every key).
+	startedOver string
 }
 
 type outerContext struct {
@@ -203,9 +205,9 @@ func (p *Plugin) run(ctx context.Context, h sdk.Host, fn string, keys []string, 
 			c.invalidateKakutei()
 		}
 		p.stale = c.pre.current
+		p.startedOver = c.state.henkanFeed
 		c.resetState(true, false)
 		c.pre.output("")
-		p.startedOver = true
 	}
 	if fn == "toggle" {
 		fn = "enable"

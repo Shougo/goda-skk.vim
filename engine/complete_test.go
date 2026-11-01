@@ -133,3 +133,47 @@ func TestCompleteDoneAfterKeys(t *testing.T) {
 		t.Errorf("the reading is lost: %q %q", s.line, s.preedit())
 	}
 }
+
+func TestCompleteDoneAfterKeyAndReading(t *testing.T) {
+	s := newSim(t, Config{})
+	ctx := context.Background()
+	s.typ("Kan")
+	s.p.Reading()
+	s.line = "感じ"
+	// The completion asks for the reading again for the key typed on
+	// before the completion tells.
+	s.typ("d")
+	s.p.Reading()
+	s.p.CompleteDone(ctx, s, OkuriNasi, "かんじ", "感じ", "感じ")
+	s.typ("esu")
+	if s.line != "感じです" {
+		t.Errorf("typing on: %q", s.line)
+	}
+	// Two keys and a new reading the completed one starts with.
+	s.typ("Kan")
+	s.p.Reading()
+	s.line = "感じです感じ"
+	s.typ("Ka")
+	s.p.Reading()
+	s.p.CompleteDone(ctx, s, OkuriNasi, "かんじ", "感じ", "感じ")
+	s.typ("ku")
+	if s.line != "感じです感じ▽かく" || s.preedit() != "▽かく" {
+		t.Errorf("the reading is lost: %q %q", s.line, s.preedit())
+	}
+}
+
+func TestCompleteDoneAfterCursorMoved(t *testing.T) {
+	s := newSim(t, Config{})
+	ctx := context.Background()
+	// The input starts over because the cursor moved, not because of a
+	// completion: a completion accepted later replaces its reading.
+	s.typ("Tes")
+	s.line = "x"
+	s.typ("Kan")
+	s.p.Reading()
+	s.line = "x感じ"
+	s.p.CompleteDone(ctx, s, OkuriNasi, "かんじ", "感じ", "感じ")
+	if s.preedit() != "" {
+		t.Errorf("the reading is left: %q", s.preedit())
+	}
+}
