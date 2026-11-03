@@ -585,6 +585,8 @@ DIFFERENCES FROM SKKELETON                                *goda-skk-skkeleton*
 - In a terminal job, the keys that move or edit its line (CTRL-A, <Left>,
   ...) confirm the pre-edit first (skkeleton.nvim#121); not CTRL-N, CTRL-O
   (after CTRL-\), 'termwinkey', and keys mapped already.
+- Leaving a terminal job (CTRL-\ CTRL-N, another window) confirms the
+  pre-edit in its line.
 - <C-g> keeps katakana with the katakana mode (skkeleton.nvim#87).
 - What it types is not recorded in a macro: the keys typed type it again
   (skkeleton.nvim#36).

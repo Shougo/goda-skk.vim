@@ -230,6 +230,18 @@ function! s:run() abort
   iunmap <buffer> a
 endfunction
 
+" The lines of the terminal {buf} when one matches {pat}, 5 seconds at
+" most.
+function! s:wait_line(buf, pat) abort
+  for _ in range(250)
+    let s:tl = getbufline(a:buf, 1, '$')
+    if match(s:tl, a:pat) >= 0
+      return
+    endif
+    call term_wait(a:buf, 20)
+  endfor
+endfunction
+
 function! s:terminal() abort
   tmap <C-j> <Plug>(goda-skk-enable)
   new
@@ -259,6 +271,15 @@ function! s:terminal() abort
   endfor
   " (What the job echoes of the backspaces depends on the system.)
   call s:check('terminal key', match(getbufline(buf, 1, '$'), 'かん^A$') >= 0, v:true)
+  " Leaving it: the pre-edit in the line of the job is confirmed: the job
+  " gets the kana after it. (Vim shows the lines of the job in Terminal-Job
+  " mode, a step later.)
+  call feedkeys("i\<C-j>Sake\<C-\>\<C-n>", 'xt')
+  call s:check('terminal left', g:goda_skk#enabled, v:false)
+  let s:tl = []
+  call feedkeys("i\<CR>\<Cmd>call s:wait_line(" . buf . ", '▽さけ^H^H^Hさけ$')\<CR>\<C-\>\<C-n>", 'xt')
+  call feedkeys("i\<Cmd>call s:wait_line(" . buf . ", '▽さけ^H^H^Hさけ$')\<CR>\<C-\>\<C-n>", 'xt')
+  call s:check('terminal left line', match(s:tl, '▽さけ^H^H^Hさけ$') >= 0, v:true)
   bwipeout!
   tunmap <C-j>
 endfunction

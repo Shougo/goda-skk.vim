@@ -520,12 +520,38 @@ function! s:check_stale() abort
   endif
 endfunction
 
+" Terminal mode left (CTRL-\ CTRL-N, another window): the pre-edit in the
+" line of the job, which the input method cannot change any more, is
+" confirmed there, as <Esc> confirms it (#56 of skkeleton.nvim).
+function! s:confirm_job() abort
+  if get(s:, 'enabled_mode', '') !=# 't' || get(s:, 'pre_edit', '') ==# ''
+        \ || &buftype !=# 'terminal'
+    return
+  endif
+  try
+    let r = goda#request('skk', 'handle', 'kakutei', [],
+          \ #{mode: 't', prevInput: '', bufnr: bufnr('%'), lnum: line('.'),
+          \   pumVisible: v:false, selected: -1, confirmKey: ''}, v:true)
+  catch
+    return
+  endtry
+  if r.keys ==# ''
+    return
+  endif
+  if has('nvim')
+    call chansend(b:terminal_job_id, r.keys)
+  else
+    call term_sendkeys(bufnr('%'), r.keys)
+  endif
+endfunction
+
 function! s:reset() abort
   if get(s:, 'registering', 0) > 0
     " The window the prompt belongs to is entered again.
     return
   endif
   if goda#is_running('skk')
+    call s:confirm_job()
     call goda#notify('skk', 'reset')
   endif
   " The pre-edit is not the input any more (#27, #29, #46 of
