@@ -469,13 +469,15 @@ func cancel(c *Context, _ string) {
 	if s.kind == stateInput && s.mode == modeDirect && c.vimMode == "c" {
 		c.kakutei("\x03")
 	}
+	// The mode stays, and so does its converter: katakana after <C-g> in
+	// the katakana mode (#87 of skkeleton.nvim).
 	if *c.cfg.ImmediatelyCancel {
-		c.resetState(false, false)
+		c.resetState(true, false)
 		return
 	}
 	switch s.kind {
 	case stateInput:
-		c.resetState(false, false)
+		c.resetState(true, false)
 	case stateHenkan:
 		s.kind = stateInput
 	}
@@ -507,7 +509,7 @@ func purgeCandidate(c *Context, _ string) {
 	c.lib.purge(ref.typ, ref.word, ref.candidate)
 	// Taking the kakutei back would choose the purged candidate again.
 	c.invalidateKakutei()
-	c.state.reset(c.table, false, false)
+	c.state.reset(c.table, true, false)
 	c.lastCandidate.word = ""
 }
 

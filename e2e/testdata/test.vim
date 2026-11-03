@@ -150,6 +150,13 @@ function! s:run() abort
   call setline(1, 'ab cd')
   call feedkeys("0i\<C-j>O\<C-r>=1\<CR>a\<Esc>", 'xt')
   call s:check('insert stale expression', getline(1), 'お1あab cd')
+  " Back from <C-o>: the pre-edit left where the cursor was starts over.
+  call setline(1, 'abcd')
+  call feedkeys("0lli\<C-j>Kan\<C-o>l\<Cmd>let s:st = [getline(1), g:goda_skk#state.phase]\<CR>\<Esc>", 'xt')
+  call s:check('<C-o>', s:st, ['abかncd', 'input'])
+  call setline(1, 'ab')
+  call feedkeys("A\<C-j>Kan\<C-o>:\<CR>n\<Esc>", 'xt')
+  call s:check('<C-o> not moved', getline(1), 'abかん')
   " Insert mode left with <C-c>: the input is reset.
   call setline(1, 'ab')
   call feedkeys("A\<C-j>Kan\<C-c>", 'xt')
@@ -242,6 +249,16 @@ function! s:terminal() abort
     call term_wait(buf, 20)
   endfor
   call s:check('terminal', match(getbufline(buf, 1, '$'), 'あいう') >= 0, v:true)
+  " A key of the job (<C-a>): the pre-edit is confirmed first.
+  call feedkeys("i\<C-j>Kan\<C-a>\<CR>\<C-\>\<C-n>", 'xt')
+  for _ in range(250)
+    if match(getbufline(buf, 1, '$'), 'かん^A') >= 0
+      break
+    endif
+    call term_wait(buf, 20)
+  endfor
+  " (What the job echoes of the backspaces depends on the system.)
+  call s:check('terminal key', match(getbufline(buf, 1, '$'), 'かん^A$') >= 0, v:true)
   bwipeout!
   tunmap <C-j>
 endfunction

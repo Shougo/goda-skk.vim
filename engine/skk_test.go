@@ -921,3 +921,19 @@ func TestKanaFromZenkaku(t *testing.T) {
 		}
 	}
 }
+
+// <C-g> keeps the mode and its converter (#87 of skkeleton.nvim).
+func TestCancelKeepsConverter(t *testing.T) {
+	for keys, want := range map[string][2]string{
+		"q<c-g>A":     {"▽ア", ModeKata},
+		"q<c-g>Aq":    {"あ", ModeKata},
+		"qKa<c-g>A":   {"▽ア", ModeKata},
+		"<c-q><c-g>A": {"▽ｱ", ModeHankata},
+	} {
+		s := newSim(t, Config{})
+		s.typ(keys)
+		if s.line != want[0] || s.res.Mode != want[1] {
+			t.Errorf("%s: %q %q, want %q", keys, s.line, s.res.Mode, want)
+		}
+	}
+}

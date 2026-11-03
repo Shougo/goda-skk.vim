@@ -324,6 +324,17 @@ function! goda_skk#_key(mode, i) abort
   return goda_skk#handle(func, [key])
 endfunction
 
+" A key of a terminal job not for the input method (<C-a>, <Left>): the job
+" moves or edits its line, which the input method cannot see, so the
+" pre-edit is confirmed before it gets the key (#121 of skkeleton.nvim).
+function! goda_skk#_pass(i) abort
+  " First in the typeahead, after what the confirmation types.
+  call feedkeys(eval('"\' . b:goda_skk_pass[a:i] . '"'), 'ni')
+  if get(s:, 'pre_edit', '') !=# ''
+    call goda_skk#handle('kakutei')
+  endif
+endfunction
+
 " The registration of a word: ask for it on the command line, where the
 " input method is enabled, and tell the plugin ('' when cancelled). The
 " input method of where it was asked from is put aside meanwhile.
@@ -439,6 +450,27 @@ function! s:enable(keys) abort
           \ mode, lhs, string(mode), len(b:goda_skk_keys[mode]))
     call add(b:goda_skk_keys[mode], [func, s:notation(lhs)])
   endfor
+  if mode ==# 't'
+    " The other keys that move or edit the line of the job, unless mapped
+    " (by the input method or the user): goda_skk#_pass(). Not those of
+    " Vim after CTRL-\ (CTRL-\ CTRL-N, CTRL-\ CTRL-O) and of 'termwinkey',
+    " which a mapping would break.
+    let b:goda_skk_pass = []
+    let ctrl = map(range(char2nr('a'), char2nr('z')), {_, n -> printf('<C-%s>', nr2char(n))})
+    let skip = '<C-[jmno]>' . (has('nvim') ? '' : '\|<C-w>')
+    if !has('nvim') && &termwinkey !=# ''
+      let skip .= '\|\c' . escape(&termwinkey, '\')
+    endif
+    for lhs in filter(ctrl, {_, k -> k !~# skip})
+          \ + ['<Left>', '<Right>', '<Up>', '<Down>', '<Home>', '<End>', '<Del>']
+      if maparg(lhs, 't') !=# ''
+        continue
+      endif
+      execute printf('tnoremap <buffer> <nowait> %s <Cmd>call goda_skk#_pass(%d)<CR>',
+            \ lhs, len(b:goda_skk_pass))
+      call add(b:goda_skk_pass, lhs)
+    endfor
+  endif
   let g:goda_skk#enabled = v:true
   let s:enabled_mode = mode
   call s:autocmds()
@@ -454,6 +486,9 @@ function! s:autocmds() abort
     " Replace mode (<Insert>) is not for the input method (#29 of
     " skkeleton.nvim).
     autocmd ModeChanged i*:R* call s:reset()
+    " Back from a command of <C-o>, which may have moved the cursor: the
+    " pre-edit left there starts over (#117 of skkeleton.nvim).
+    autocmd ModeChanged ni*:i* call s:check_stale()
     autocmd WinLeave * call s:reset()
   augroup END
 endfunction
@@ -476,6 +511,13 @@ function! s:disable(reenable = v:false) abort
   endif
   call s:set_mode('')
   call s:doautocmd('goda-skk-disable-post')
+endfunction
+
+function! s:check_stale() abort
+  if g:goda_skk#enabled && get(s:, 'pre_edit', '') !=# ''
+    " No key: only what the buffer says now.
+    call goda_skk#handle('handleKey', [])
+  endif
 endfunction
 
 function! s:reset() abort

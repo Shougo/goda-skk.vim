@@ -580,6 +580,12 @@ DIFFERENCES FROM SKKELETON                                *goda-skk-skkeleton*
   of it.  So it is when the input is reset: another window, insert mode left
   with |i_CTRL-C| (skkeleton.nvim#27, #46).
 - Replace mode (|i_<Insert>|) disables it (skkeleton.nvim#29).
+- Back from |i_CTRL-O|, a pre-edit the cursor left starts over at once
+  (skkeleton.nvim#117).
+- In a terminal job, the keys that move or edit its line (CTRL-A, <Left>,
+  ...) confirm the pre-edit first (skkeleton.nvim#121); not CTRL-N, CTRL-O
+  (after CTRL-\), 'termwinkey', and keys mapped already.
+- <C-g> keeps katakana with the katakana mode (skkeleton.nvim#87).
 - What it types is not recorded in a macro: the keys typed type it again
   (skkeleton.nvim#36).
 - A candidate with "/" is (concat "...") in a dictionary: read, and written
@@ -589,7 +595,6 @@ DIFFERENCES FROM SKKELETON                                *goda-skk-skkeleton*
 - Leaving the window resets |g:goda_skk#state| too (skkeleton.nvim#15);
   while a word is registered, the window is not left (skkeleton.nvim#13).
 - A key of no candidate on the page keeps the list (skkeleton.nvim#14).
-- <C-g> keeps the katakana mode.
 - skkeleton-henkan-highlight and skkeleton-state-popup are built in
   (|goda-skk-highlight|, |goda-skk-state-popup|).
 - The completion popup is |g:goda_skk#completion_backend|, not
