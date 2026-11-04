@@ -111,7 +111,8 @@ type Status struct {
 	Lnum       int    `json:"lnum"`
 	PumVisible bool   `json:"pumVisible"`
 	Selected   int    `json:"selected"`
-	ConfirmKey string `json:"confirmKey"`
+	// CanConfirm: the completion has keys that choose the item selected.
+	CanConfirm bool `json:"canConfirm"`
 }
 
 // Result is the answer to handle.
@@ -153,6 +154,11 @@ type Result struct {
 	// Register is the prompt of a word to register: Vim asks for it, then
 	// runs registerDone with it.
 	Register string `json:"register"`
+	// CompletionConfirm: Vim chooses the item selected of the completion
+	// (the confirm of g:goda_skk#completion_backend). The keys are not
+	// sent from here: they may have special keys ("\<Cmd>"), whose bytes
+	// are not UTF-8, and a result goes through JSON in Neovim.
+	CompletionConfirm bool `json:"completionConfirm"`
 }
 
 // handle runs fn ("handleKey", "enable", "disable", "toggle",
@@ -263,11 +269,13 @@ func (p *Plugin) run(ctx context.Context, h sdk.Host, fn string, keys []string, 
 
 	before := c.mode
 	if st.PumVisible && fn == "handleKey" && strings.Join(keys, "") == "<cr>" &&
-		st.Selected >= 0 && p.cfg.EggLikeNewline && st.ConfirmKey != "" {
+		st.Selected >= 0 && p.cfg.EggLikeNewline && st.CanConfirm {
 		// <CR> accepts the completion.
 		c.resetState(true, false)
 		c.pre.output("")
-		return p.result(st.ConfirmKey), nil
+		res := p.result("")
+		res.CompletionConfirm = true
+		return res, nil
 	}
 	if fn == "handleKey" {
 		for _, k := range keys {
