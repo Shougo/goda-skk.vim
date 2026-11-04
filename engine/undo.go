@@ -160,7 +160,7 @@ func kakuteiUndo(c *Context, _ string) {
 	if c.mode != last.mode {
 		c.modeChange(last.mode)
 	}
-	if c.state.index >= c.cfg.ShowCandidatesCount {
+	if c.state.index >= *c.cfg.ShowCandidatesCount {
 		showCandidates(c)
 	}
 }

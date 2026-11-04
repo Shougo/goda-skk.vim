@@ -293,7 +293,7 @@ func henkanForward(c *Context, _ string) {
 		return
 	}
 	old := s.index
-	if s.index >= c.cfg.ShowCandidatesCount {
+	if s.index >= *c.cfg.ShowCandidatesCount {
 		s.index += len(c.cfg.SelectCandidateKeys)
 	} else {
 		s.index++
@@ -307,7 +307,7 @@ func henkanForward(c *Context, _ string) {
 			s.kind = stateInput
 		}
 	}
-	if s.index >= c.cfg.ShowCandidatesCount {
+	if s.index >= *c.cfg.ShowCandidatesCount {
 		showCandidates(c)
 	}
 }
@@ -318,8 +318,8 @@ func henkanBackward(c *Context, _ string) {
 	if s.kind != stateHenkan {
 		return
 	}
-	if s.index >= c.cfg.ShowCandidatesCount {
-		s.index = max(s.index-len(c.cfg.SelectCandidateKeys), c.cfg.ShowCandidatesCount-1)
+	if s.index >= *c.cfg.ShowCandidatesCount {
+		s.index = max(s.index-len(c.cfg.SelectCandidateKeys), *c.cfg.ShowCandidatesCount-1)
 	} else {
 		s.index--
 	}
@@ -327,7 +327,7 @@ func henkanBackward(c *Context, _ string) {
 		s.kind = stateInput
 		return
 	}
-	if s.index >= c.cfg.ShowCandidatesCount {
+	if s.index >= *c.cfg.ShowCandidatesCount {
 		showCandidates(c)
 	}
 }
@@ -347,7 +347,7 @@ func showCandidates(c *Context) {
 // another confirms the candidate and is typed.
 func henkanInput(c *Context, key string) {
 	s := &c.state
-	if s.index >= c.cfg.ShowCandidatesCount {
+	if s.index >= *c.cfg.ShowCandidatesCount {
 		if i := strings.Index(c.cfg.SelectCandidateKeys, key); i >= 0 && utf8.RuneCountInString(key) == 1 {
 			i = utf8.RuneCountInString(c.cfg.SelectCandidateKeys[:i])
 			if s.index+i < len(s.candidates) {

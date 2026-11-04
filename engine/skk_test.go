@@ -485,6 +485,42 @@ func TestCancel(t *testing.T) {
 	}
 }
 
+// ShowCandidatesCount 0: the list from the first candidate, as
+// skkeleton's showCandidatesCount: 0.
+func TestShowCandidatesCountZero(t *testing.T) {
+	s := newSim(t, Config{ShowCandidatesCount: new(0)})
+	s.typ("Kanji ")
+	want := []string{"a: 漢字", "s: 感じ", "d: 幹事", "f: 監事", "j: 完治", "k: 寛治", "l: 莞爾"}
+	if got := s.preedit(); got != "▼漢字" || !slices.Equal(s.res.Popup, want) {
+		t.Fatalf("first: %q %q", got, s.res.Popup)
+	}
+	s.typ(" ")
+	want = []string{"a: 冠辞", "s: 環時"}
+	if got := s.preedit(); got != "▼冠辞" || !slices.Equal(s.res.Popup, want) {
+		t.Fatalf("next page: %q %q", got, s.res.Popup)
+	}
+	// Back a page, then back to the reading.
+	s.typ("x")
+	if got := s.preedit(); got != "▼漢字" {
+		t.Errorf("back: %q", got)
+	}
+	s.typ("x")
+	if got := s.preedit(); got != "▽かんじ" {
+		t.Errorf("reading: %q", got)
+	}
+	s.typ(" d")
+	if s.line != "幹事" {
+		t.Errorf("chosen: %q", s.line)
+	}
+
+	// A negative count is the default, as before.
+	s = newSim(t, Config{ShowCandidatesCount: new(-1)})
+	s.typ("Kanji ")
+	if got := s.preedit(); got != "▼漢字" || len(s.res.Popup) != 0 {
+		t.Errorf("negative: %q %q", got, s.res.Popup)
+	}
+}
+
 func TestNewline(t *testing.T) {
 	s := newSim(t, Config{})
 	s.typ("Henkan <cr>")

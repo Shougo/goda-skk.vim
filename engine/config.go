@@ -35,8 +35,9 @@ type Config struct {
 	MarkerHenkan       *string
 	MarkerHenkanSelect *string
 	// ShowCandidatesCount is how many candidates are shown one by one
-	// before the rest is listed in a popup (default 4).
-	ShowCandidatesCount int
+	// before the rest is listed in a popup (default 4; new(0) lists them
+	// from the first one).
+	ShowCandidatesCount *int
 	// SelectCandidateKeys are the 7 keys that choose from the popup
 	// (default "asdfjkl").
 	SelectCandidateKeys string
@@ -73,7 +74,7 @@ var Defaults = Config{
 	UserDictionary:      "~/.goda-skk-jisyo",
 	MarkerHenkan:        new("▽"),
 	MarkerHenkanSelect:  new("▼"),
-	ShowCandidatesCount: 4,
+	ShowCandidatesCount: new(4),
 	SelectCandidateKeys: "asdfjkl",
 }
 
@@ -95,8 +96,8 @@ func (c Config) fill() (Config, error) {
 	if c.MarkerHenkanSelect == nil {
 		c.MarkerHenkanSelect = new(*Defaults.MarkerHenkanSelect)
 	}
-	if c.ShowCandidatesCount <= 0 {
-		c.ShowCandidatesCount = Defaults.ShowCandidatesCount
+	if c.ShowCandidatesCount == nil || *c.ShowCandidatesCount < 0 {
+		c.ShowCandidatesCount = new(*Defaults.ShowCandidatesCount)
 	}
 	if c.SelectCandidateKeys == "" {
 		c.SelectCandidateKeys = Defaults.SelectCandidateKeys
