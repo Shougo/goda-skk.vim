@@ -165,20 +165,8 @@ func (p *Plugin) handle(ctx context.Context, h sdk.Host, params []any) (any, err
 		Status  Status
 		Enabled bool
 	}
-	if len(params) < 3 {
-		return nil, fmt.Errorf("handle: want fn, keys and status")
-	}
-	if err := sdk.Decode(params[0], &args.Fn); err != nil {
-		return nil, err
-	}
-	if err := sdk.Decode(params[1], &args.Keys); err != nil {
-		return nil, err
-	}
-	if err := sdk.Decode(params[2], &args.Status); err != nil {
-		return nil, err
-	}
-	if len(params) > 3 {
-		_ = sdk.Decode(params[3], &args.Enabled)
+	if err := sdk.DecodeArgs(params, &args.Fn, &args.Keys, &args.Status, sdk.Optional(&args.Enabled)); err != nil {
+		return nil, fmt.Errorf("handle(fn, keys, status[, enabled]): %w", err)
 	}
 	p.mu.Lock()
 	defer p.mu.Unlock()
