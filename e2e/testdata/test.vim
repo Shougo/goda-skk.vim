@@ -242,6 +242,10 @@ function! s:wait_line(buf, pat) abort
   endfor
 endfunction
 
+function! s:term_lines(buf) abort
+  return map(range(1, term_getsize(a:buf)[0]), 'term_getline(a:buf, v:val)')
+endfunction
+
 function! s:terminal() abort
   tmap <C-j> <Plug>(goda-skk-enable)
   new
@@ -255,22 +259,24 @@ function! s:terminal() abort
   " The job echoes it when it gets to it: wait for that (5 seconds at
   " most, for a loaded machine).
   for _ in range(250)
-    if match(getbufline(buf, 1, '$'), 'あいう') >= 0
+    if match(s:term_lines(buf), 'あいう') >= 0
       break
     endif
     call term_wait(buf, 20)
   endfor
-  call s:check('terminal', match(getbufline(buf, 1, '$'), 'あいう') >= 0, v:true)
+  call s:check('terminal', match(s:term_lines(buf), 'あいう') >= 0, v:true)
   " A key of the job (<C-a>): the pre-edit is confirmed first.
+  " The lines of the screen of the job: those of the buffer may be a step
+  " behind.
   call feedkeys("i\<C-j>Kan\<C-a>\<CR>\<C-\>\<C-n>", 'xt')
   for _ in range(250)
-    if match(getbufline(buf, 1, '$'), 'かん^A') >= 0
+    if match(s:term_lines(buf), 'かん^A$') >= 0
       break
     endif
     call term_wait(buf, 20)
   endfor
   " (What the job echoes of the backspaces depends on the system.)
-  call s:check('terminal key', match(getbufline(buf, 1, '$'), 'かん^A$') >= 0, v:true)
+  call s:check('terminal key', match(s:term_lines(buf), 'かん^A$') >= 0, v:true)
   " Leaving it: the pre-edit in the line of the job is confirmed: the job
   " gets the kana after it. (Vim shows the lines of the job in Terminal-Job
   " mode, a step later.)

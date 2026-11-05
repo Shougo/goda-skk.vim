@@ -190,6 +190,15 @@ function! goda_skk#handle(func, keys = []) abort
     let keys .= printf("\<Cmd>call goda_skk#_restore_point(%d, %d)\<CR>",
           \ r.restore.lnum, r.restore.col)
   endif
+  " The pre-edit is deleted with <BS>, which 'backspace' without "start"
+  " does not let past where insert mode started: back from <C-o>, the text
+  " typed before. Until goda_skk#_handled().
+  if stridx(keys, "\<C-h>") >= 0 && !has_key(s:, 'saved_backspace')
+        \ && &backspace !~# 'start\|^[23]$'
+    let s:saved_backspace = &backspace
+    let &backspace = &backspace ==# '1' ? 'indent,eol,start'
+          \ : join(filter(split(&backspace, ','), 'v:val !=# "0"') + ['start'], ',')
+  endif
   " Not typed while a macro is recorded: the keys typed are, and they type
   " these again (#36 of skkeleton.nvim).
   call feedkeys(keys . "\<Cmd>call goda_skk#_handled()\<CR>",
@@ -267,6 +276,9 @@ endfunction
 " After the keys were typed: the list of candidates, the highlight of the
 " pre-edit, User goda-skk-handled.
 function! goda_skk#_handled() abort
+  if has_key(s:, 'saved_backspace')
+    let &backspace = remove(s:, 'saved_backspace')
+  endif
   " Where the pre-edit is, for s:remove_stale().
   let pre_edit = get(s:, 'pre_edit', '')
   let s:pre_edit_at = {}
@@ -488,6 +500,7 @@ function! s:autocmds() abort
     autocmd ModeChanged i*:R* call s:reset()
     " Back from a command of <C-o>, which may have moved the cursor: the
     " pre-edit left there starts over (#117 of skkeleton.nvim).
+    autocmd ModeChanged i*:ni* call s:ctrl_o_enter()
     autocmd ModeChanged ni*:i* call s:check_stale()
     autocmd WinLeave * call s:reset()
   augroup END
@@ -513,7 +526,19 @@ function! s:disable(reenable = v:false) abort
   call s:doautocmd('goda-skk-disable-post')
 endfunction
 
+" Where <C-o> started its command. At the end of the line the cursor is put
+" on the last character meanwhile, and back after the return to insert mode
+" (ModeChanged comes before): the same place and line are "not moved".
+function! s:ctrl_o_enter() abort
+  let s:ctrl_o = [bufnr('%'), line('.'), col('.'), getline('.')]
+endfunction
+
 function! s:check_stale() abort
+  let before = get(s:, 'ctrl_o', [])
+  unlet! s:ctrl_o
+  if before == [bufnr('%'), line('.'), col('.'), getline('.')]
+    return
+  endif
   if g:goda_skk#enabled && get(s:, 'pre_edit', '') !=# ''
     " No key: only what the buffer says now.
     call goda_skk#handle('handleKey', [])
