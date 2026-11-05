@@ -35,7 +35,7 @@ pre-edit, what was confirmed, and the new pre-edit), and Vim types them.
 INSTALL                                                     *goda-skk-install*
 
 Requirements: Go 1.26 or later; Vim 9.1 or later (|+job| |+channel|
-|+popupwin|) or Neovim 0.10 or later; goda.vim; an SKK dictionary
+|+popupwin|) or Neovim 0.11 or later; goda.vim; an SKK dictionary
 (SKK-JISYO.L, say).
 
 Install `Shougo/goda.vim` and `Shougo/goda-skk.vim` with your plugin manager,

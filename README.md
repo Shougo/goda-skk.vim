@@ -22,7 +22,7 @@ skkeleton one, is in [examples/goda-cmp](examples/goda-cmp).
 ## Try it
 
 You need Go 1.26 or newer, Vim 9.1 or newer (with `+job +channel +popupwin`)
-or Neovim 0.10 or newer, and an SKK dictionary (SKK-JISYO.L, say). Install
+or Neovim 0.11 or newer, and an SKK dictionary (SKK-JISYO.L, say). Install
 `Shougo/goda.vim` and `Shougo/goda-skk.vim` with your plugin manager, then
 create your configuration, a Go module of your own (keep it in your
 dotfiles; `examples/config` is only a template to copy):
