@@ -94,6 +94,14 @@ func (p *Plugin) newContext() *Context {
 
 func (p *Plugin) Name() string { return PluginName }
 
+// ScriptVersion is the version of the Vim script (autoload/goda_skk.vim) this
+// binary goes with (sdk.ScriptVersioner): goda.vim refuses a binary of
+// another one and says to build it again. Bump it with s:version there when
+// the Vim script and the binary no longer work together.
+const ScriptVersion = 1
+
+func (p *Plugin) ScriptVersion() int { return ScriptVersion }
+
 func (p *Plugin) Handlers() map[string]sdk.Handler {
 	return map[string]sdk.Handler{
 		"handle":  p.handle,

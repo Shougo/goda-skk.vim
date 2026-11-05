@@ -6,6 +6,11 @@
 " plugin, which answers with the keys to type: backspaces over the old
 " pre-edit, what was confirmed, and the new pre-edit (▽かな, ▼漢字).
 
+" The version of this Vim script that the binary goes with (ScriptVersion of
+" its Go side): goda.vim refuses a binary of another one, and says to build
+" it again. Bumped with it when they no longer work together.
+let s:version = #{version: 1, module: 'github.com/Shougo/goda-skk.vim'}
+
 let g:goda_skk#enabled = v:false
 let g:goda_skk#mode = ''
 let g:goda_skk#state = #{phase: '', henkanFeed: ''}
@@ -61,7 +66,7 @@ function! goda_skk#build() abort
   if goda#is_running('skk') && get(goda#plugins(), 'skk', '') ==# bin
     call goda#stop('skk')
   endif
-  call goda#register('skk', function('s:start'))
+  call goda#register('skk', function('s:start'), s:version)
   echomsg 'goda-skk: built ' . bin
 endfunction
 
@@ -83,7 +88,7 @@ function! s:start() abort
 endfunction
 
 " (Again after a build: a start that failed is tried again.)
-call goda#register('skk', function('s:start'))
+call goda#register('skk', function('s:start'), s:version)
 
 " ---------------------------------------------------------------------------
 " Keys
