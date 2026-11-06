@@ -48,26 +48,13 @@ function! s:config_dir() abort
 endfunction
 
 " Build the configuration (a Go module in g:goda_skk#config_dir) into
-" g:goda_skk#binary. Needs Go. A running binary is stopped, to be started
+" g:goda_skk#binary with goda#build(): with the plugins installed
+" (g:goda#workspace). Needs Go. A running binary is stopped, to be started
 " again with the next key.
 function! goda_skk#build() abort
-  let dir = s:config_dir()
-  if !isdirectory(dir)
-    throw 'goda-skk: no config directory: ' . dir
-  endif
-  let bin = s:binary()
-  call mkdir(fnamemodify(bin, ':h'), 'p')
   call goda_skk#disable()
-  " "go -C" runs go in that directory: no cd, which differs between shells.
-  let out = system('go -C ' . shellescape(dir) . ' build -o ' . shellescape(bin) . ' .')
-  if v:shell_error
-    throw 'goda-skk: go build failed:' . "\n" . out
-  endif
-  if goda#is_running('skk') && get(goda#plugins(), 'skk', '') ==# bin
-    call goda#stop('skk')
-  endif
+  call goda#build(#{name: 'skk', dir: s:config_dir(), bin: s:binary()})
   call goda#register('skk', function('s:start'), s:version)
-  echomsg 'goda-skk: built ' . bin
 endfunction
 
 " Start the binary: goda.vim calls it when a key needs the plugin "skk" and no
