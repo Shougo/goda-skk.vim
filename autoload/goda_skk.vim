@@ -9,7 +9,7 @@
 " The version of this Vim script that the binary goes with (ScriptVersion of
 " its Go side): goda.vim refuses a binary of another one, and says to build
 " it again. Bumped with it when they no longer work together.
-let s:version = #{version: 1, module: 'github.com/Shougo/goda-skk.vim'}
+let s:version = #{version: 2, module: 'github.com/Shougo/goda-skk.vim'}
 
 let g:goda_skk#enabled = v:false
 let g:goda_skk#mode = ''

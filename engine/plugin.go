@@ -98,7 +98,7 @@ func (p *Plugin) Name() string { return PluginName }
 // binary goes with (sdk.ScriptVersioner): goda.vim refuses a binary of
 // another one and says to build it again. Bump it with s:version there when
 // the Vim script and the binary no longer work together.
-const ScriptVersion = 1
+const ScriptVersion = 2
 
 func (p *Plugin) ScriptVersion() int { return ScriptVersion }
 
