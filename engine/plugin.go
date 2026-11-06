@@ -284,7 +284,7 @@ func (p *Plugin) run(ctx context.Context, h sdk.Host, fn string, keys []string, 
 			f(c, "")
 		}
 	}
-	if s := &c.state; s.kind == stateHenkan && s.index >= c.cfg.ShowCandidatesCount &&
+	if s := &c.state; s.kind == stateHenkan && s.index >= *c.cfg.ShowCandidatesCount &&
 		len(c.popup) == 0 && c.register == nil {
 		// Still choosing (a key not of the page, say): the list stays
 		// (#14 of skkeleton.nvim).

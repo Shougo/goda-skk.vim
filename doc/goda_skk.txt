@@ -325,7 +325,8 @@ MarkerHenkan		"▽"; new("") for none (|goda-skk-highlight|).
 
 MarkerHenkanSelect	"▼"; new("") for none.
 
-ShowCandidatesCount	Candidates shown one by one before the popup (4).
+ShowCandidatesCount	Candidates shown one by one before the popup (4);
+			new(0) lists them from the first one.
 
 SelectCandidateKeys	The keys of the popup ("asdfjkl").
 
@@ -349,8 +350,9 @@ RegisterConvertResult	Learn conversions to katakana ("q" on a reading).
 
 SetUndoPoint		A conversion confirmed is a step of undo (true).
 
-The fields that default to true, and the markers, are pointers:
-`ImmediatelyCancel: new(false)`, `MarkerHenkan: new("")`.
+The fields that default to true, the markers and ShowCandidatesCount are
+pointers: `ImmediatelyCancel: new(false)`, `MarkerHenkan: new("")`,
+`ShowCandidatesCount: new(0)`.
 
 skkeleton's register_kanatable() and register_keymap() are written as: >go
 
