@@ -122,6 +122,28 @@ func TestCompleteDoneAfterKey(t *testing.T) {
 	}
 }
 
+// EggLikeNewline: <CR> with an item selected has Vim choose it, without
+// a new line.
+func TestEggLikeNewlineConfirm(t *testing.T) {
+	s := newSim(t, Config{EggLikeNewline: true})
+	s.typ("Kan")
+	s.line = "感じ"
+	s.pum, s.selected = true, 0
+	s.typ("<cr>")
+	s.pum, s.selected = false, -1
+	if !s.res.CompletionConfirm || s.res.Keys != "" || s.line != "感じ" || s.preedit() != "" {
+		t.Errorf("confirm: %+v %q %q", s.res, s.line, s.preedit())
+	}
+	// Nothing selected: <CR> as before.
+	s.typ("Kan")
+	s.pum = true
+	s.typ("<cr>")
+	s.pum = false
+	if s.res.CompletionConfirm || s.line != "感じかん" {
+		t.Errorf("not selected: %v %q", s.res.CompletionConfirm, s.line)
+	}
+}
+
 func TestCompleteDoneAfterKeys(t *testing.T) {
 	s := newSim(t, Config{})
 	ctx := context.Background()
