@@ -232,6 +232,17 @@ function! s:remove_stale(stale, text) abort
     return
   endif
   let mode = mode()
+  if at.mode ==# 'c' && mode ==# 'c' && getcmdtype() !=# at.cmdtype
+    " A command line in the command line (<C-r>=): the pre-edit is in the
+    " outer one, which loses it when it is back (#206 of skkeleton.nvim).
+    let s:outer_stale = #{at: at, stale: a:stale, text: a:text}
+    augroup goda_skk_outer_stale
+      autocmd!
+      autocmd CmdlineChanged * call s:remove_outer_stale()
+      autocmd CmdlineLeave * call s:leave_outer_stale()
+    augroup END
+    return
+  endif
   if at.mode ==# 'c' && mode ==# 'c' && getcmdtype() ==# at.cmdtype
     let [line, pos, keep] = [getcmdline(), getcmdpos(), '']
   elseif at.mode ==# 'i' && mode =~# '^[iRn]' && !pumvisible()
@@ -270,6 +281,32 @@ function! s:remove_stale(stale, text) abort
   call cursor(line('.'), pos)
 endfunction
 
+" Back in the command line of the pre-edit left by an inner one: it goes.
+function! s:remove_outer_stale() abort
+  let outer = get(s:, 'outer_stale', {})
+  if empty(outer) || getcmdtype() !=# outer.at.cmdtype
+    return
+  endif
+  call s:clear_outer_stale()
+  let s:pre_edit_at = outer.at
+  call s:remove_stale(outer.stale, outer.text)
+endfunction
+
+" The command line of the pre-edit is left: nothing to remove any more.
+function! s:leave_outer_stale() abort
+  let outer = get(s:, 'outer_stale', {})
+  if !empty(outer) && getcmdtype() ==# outer.at.cmdtype
+    call s:clear_outer_stale()
+  endif
+endfunction
+
+function! s:clear_outer_stale() abort
+  let s:outer_stale = {}
+  augroup goda_skk_outer_stale
+    autocmd!
+  augroup END
+endfunction
+
 " After the keys were typed: the list of candidates, the highlight of the
 " pre-edit, User goda-skk-handled.
 function! goda_skk#_handled() abort
@@ -281,7 +318,7 @@ function! goda_skk#_handled() abort
   let s:pre_edit_at = {}
   if mode() ==# 'c'
     let s:pre_edit_at = #{mode: 'c', text: pre_edit, cmdtype: getcmdtype(),
-          \ start: getcmdpos() - strlen(pre_edit)}
+          \ start: getcmdpos() - strlen(pre_edit), wins: winnr('$')}
   elseif mode() =~# '^i'
     let s:pre_edit_at = #{mode: 'i', text: pre_edit, bufnr: bufnr('%'),
           \ lnum: line('.'), start: col('.') - strlen(pre_edit)}
@@ -499,7 +536,7 @@ function! s:autocmds() abort
     " pre-edit left there starts over (#117 of skkeleton.nvim).
     autocmd ModeChanged i*:ni* call s:ctrl_o_enter()
     autocmd ModeChanged ni*:i* call s:check_stale()
-    autocmd WinLeave * call s:reset()
+    autocmd WinLeave * call s:win_leave()
   augroup END
 endfunction
 
@@ -565,6 +602,19 @@ function! s:confirm_job() abort
   else
     call term_sendkeys(bufnr('%'), r.keys)
   endif
+endfunction
+
+" Another window: the input ends. Vim opening the command-line window
+" (<C-f>) has made it already, and copies the command line into it after
+" this: the pre-edit is left there, as text (as in Neovim, which does not
+" leave the window then; #205 of skkeleton.nvim).
+function! s:win_leave() abort
+  let at = get(s:, 'pre_edit_at', {})
+  if mode() ==# 'c' && get(at, 'mode', '') ==# 'c'
+        \ && winnr('$') > get(at, 'wins', winnr('$'))
+    let s:pre_edit_at = {}
+  endif
+  call s:reset()
 endfunction
 
 function! s:reset() abort

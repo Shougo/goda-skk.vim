@@ -142,6 +142,19 @@ function! s:run() abort
   call feedkeys(":\<C-j>K\<Cmd>wincmd w\<CR>\<Cmd>let s:cl = getcmdline()\<CR>\<C-u>\<Esc>", 'xt')
   call s:check('cmdline other window', [s:cl, g:goda_skk#enabled], ['', v:false])
   only!
+  " An expression register on the pre-edit: it goes when the command line
+  " is back, not left as text (#206 of skkeleton.nvim).
+  let s:cl = ''
+  call feedkeys(":\<C-j>Kan\<C-r>=1\<CR>\<Cmd>let s:cl = getcmdline()\<CR>\<C-u>\<Esc>", 'xt')
+  call s:check('cmdline expression register', s:cl, '1')
+  " The command-line window: the pre-edit is copied into it, as text (#205
+  " of skkeleton.nvim). Vim leaves the window when it has made the one of
+  " the command-line window (which feedkeys() cannot open): as a window
+  " made from the command line.
+  let s:cl = ''
+  call feedkeys(":abc\<C-j>Kan\<Cmd>new\<CR>\<Cmd>let s:cl = getcmdline()\<CR>\<C-u>\<Esc>", 'xt')
+  call s:check('cmdline window', [s:cl, g:goda_skk#enabled], ['abc▽かn', v:false])
+  only!
 
   " The pre-edit left in insert mode: its markers go (and an expression
   " typed after it does not take it back).
