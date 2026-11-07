@@ -167,16 +167,23 @@ g:goda_skk#completion_backend                  *g:goda_skk#completion_backend*
 			selected	The index of the item selected (-1:
 					none).
 			confirm		The keys that choose the item selected.
+			cancel		The keys that cancel it (the text
+					before the item inserted comes
+					back): <C-g> (cancel) on an item
+					inserted over the reading types
+					them, and the reading stays.
 			close		The keys that close it (the item
 					inserted stays).
 		An entry left out is not done.
-		Default: Vim's |popupmenu-completion| (|pumvisible()|, <C-y>).
+		Default: Vim's |popupmenu-completion| (|pumvisible()|, <C-y>,
+		<C-e>).
 		pum.vim:
 >vim
 		let g:goda_skk#completion_backend = #{
 		      \ visible: {-> pum#visible()},
 		      \ selected: {-> pum#complete_info().selected},
 		      \ confirm: {-> "\<Cmd>call pum#map#confirm()\<CR>"},
+		      \ cancel: {-> "\<Cmd>call pum#map#cancel()\<CR>"},
 		      \ close: {-> "\<Cmd>call pum#close()\<CR>"},
 		      \ }
 <

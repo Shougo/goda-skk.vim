@@ -47,6 +47,15 @@ func TestCompletion(t *testing.T) {
 				{dump, 0.2}, // 送り 贈り
 				{"\x0e\x0e\x19", 0.5},
 				{dump, 0.2},
+				// <C-g> on an item inserted cancels the completion: the
+				// reading stays, to be typed on (#6).
+				{"Ni", 1.0},
+				{"\x0e", 0.5}, // <C-n>: 二本, chosen above
+				{dump, 0.2},
+				{"\x07", 0.5}, // <C-g>
+				{dump, 0.2},
+				{"hon ", 0.5},
+				{dump, 0.2},
 			}
 			b, err := json.Marshal(steps)
 			if err != nil {
@@ -69,6 +78,8 @@ func TestCompletion(t *testing.T) {
 				Line  string   `json:"line"`
 				Words []string `json:"words"`
 				Phase string   `json:"phase"`
+				// anyWords: the popup may be shown again, or not yet.
+				anyWords bool
 			}
 			var recs []rec
 			for l := range strings.SplitSeq(strings.TrimSpace(string(raw)), "\n") {
@@ -79,18 +90,21 @@ func TestCompletion(t *testing.T) {
 				recs = append(recs, r)
 			}
 			want := []rec{
-				{"▽に", []string{"日本", "二本"}, "input:okurinasi"},
-				{"日本", nil, "input"},
-				{"▼日本", nil, "henkan"},
-				{"二本▽おくり", []string{"送り", "贈り"}, "input:okurinasi"},
-				{"二本贈り", nil, "input"},
+				{"▽に", []string{"日本", "二本"}, "input:okurinasi", false},
+				{"日本", nil, "input", false},
+				{"▼日本", nil, "henkan", false},
+				{"二本▽おくり", []string{"送り", "贈り"}, "input:okurinasi", false},
+				{"二本贈り", nil, "input", false},
+				{"二本贈り二本", []string{"二本", "日本"}, "input:okurinasi", false},
+				{"二本贈り▽に", nil, "input:okurinasi", true},
+				{"二本贈り▼二本", nil, "henkan", false},
 			}
 			if len(recs) != len(want) {
 				t.Fatalf("records: %+v", recs)
 			}
 			for i, r := range recs {
 				w := want[i]
-				if r.Line != w.Line || !slices.Equal(r.Words, w.Words) || r.Phase != w.Phase {
+				if r.Line != w.Line || (!w.anyWords && !slices.Equal(r.Words, w.Words)) || r.Phase != w.Phase {
 					t.Errorf("record %d: %+v, want %+v", i, r, w)
 				}
 			}

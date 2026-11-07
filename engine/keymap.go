@@ -86,6 +86,21 @@ func buildKeymaps(cfg map[string]map[string]string) map[string]keymap {
 }
 
 // handleKey runs what key does in the state.
+// keyFunction is the function key is mapped to in the keymap of the state
+// ("" in none).
+func keyFunction(c *Context, key string) string {
+	var km keymap
+	switch c.state.kind {
+	case stateInput:
+		km = c.keymaps["input"]
+	case stateHenkan:
+		km = c.keymaps["henkan"]
+	default:
+		return ""
+	}
+	return km.keys[normalizeKey(key)]
+}
+
 func handleKey(c *Context, key string) {
 	key = normalizeKey(key)
 	var km keymap

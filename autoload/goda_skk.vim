@@ -9,7 +9,7 @@
 " The version of this Vim script that the binary goes with (ScriptVersion of
 " its Go side): goda.vim refuses a binary of another one, and says to build
 " it again. Bumped with it when they no longer work together.
-let s:version = #{version: 2, module: 'github.com/Shougo/goda-skk.vim'}
+let s:version = #{version: 3, module: 'github.com/Shougo/goda-skk.vim'}
 
 let g:goda_skk#enabled = v:false
 let g:goda_skk#mode = ''
@@ -113,13 +113,15 @@ function! s:status() abort
   else
     let prev = getline('.')[: col('.') - 2]
   endif
-  let [visible, selected, confirm] = [v:false, -1, v:false]
+  let [visible, selected, confirm, cancel] = [v:false, -1, v:false, v:false]
   if s:completion('visible', v:false)
     let [visible, selected] = [v:true, s:completion('selected', -1)]
     let confirm = s:completion('confirm', '') !=# '' ? v:true : v:false
+    let cancel = s:completion('cancel', '') !=# '' ? v:true : v:false
   endif
   return #{mode: mode, prevInput: prev, bufnr: bufnr('%'), lnum: line('.'),
-        \ pumVisible: visible, selected: selected, canConfirm: confirm}
+        \ pumVisible: visible, selected: selected, canConfirm: confirm,
+        \ canCancel: cancel}
 endfunction
 
 " The popup menu of insert mode: g:goda_skk#completion_backend.
@@ -127,6 +129,7 @@ let s:native = #{
       \ visible: {-> mode() =~# '^i' && pumvisible()},
       \ selected: {-> complete_info(['selected']).selected},
       \ confirm: {-> "\<C-y>"},
+      \ cancel: {-> "\<C-e>"},
       \ close: {-> "\<C-y>"},
       \ }
 
@@ -166,6 +169,9 @@ function! goda_skk#handle(func, keys = []) abort
     " Not from the plugin: the keys may have special keys, which do not go
     " through JSON.
     let keys .= s:completion('confirm', '')
+  endif
+  if get(r, 'completionCancel', v:false)
+    let keys .= s:completion('cancel', '')
   endif
   if r.disable
     call s:disable(r.reenable)
@@ -590,7 +596,8 @@ function! s:confirm_job() abort
   try
     let r = goda#request('skk', 'handle', 'kakutei', [],
           \ #{mode: 't', prevInput: '', bufnr: bufnr('%'), lnum: line('.'),
-          \   pumVisible: v:false, selected: -1, canConfirm: v:false}, v:true)
+          \   pumVisible: v:false, selected: -1, canConfirm: v:false,
+          \   canCancel: v:false}, v:true)
   catch
     return
   endtry

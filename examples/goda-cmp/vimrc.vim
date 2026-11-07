@@ -13,6 +13,7 @@ let g:goda_skk#completion_backend = #{
       \ visible: {-> pum#visible()},
       \ selected: {-> pum#complete_info().selected},
       \ confirm: {-> "\<Cmd>call pum#map#confirm()\<CR>"},
+      \ cancel: {-> "\<Cmd>call pum#map#cancel()\<CR>"},
       \ close: {-> "\<Cmd>call pum#close()\<CR>"},
       \ }
 

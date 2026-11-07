@@ -98,7 +98,7 @@ func (p *Plugin) Name() string { return PluginName }
 // binary goes with (sdk.ScriptVersioner): goda.vim refuses a binary of
 // another one and says to build it again. Bump it with s:version there when
 // the Vim script and the binary no longer work together.
-const ScriptVersion = 2
+const ScriptVersion = 3
 
 func (p *Plugin) ScriptVersion() int { return ScriptVersion }
 
@@ -121,6 +121,9 @@ type Status struct {
 	Selected   int    `json:"selected"`
 	// CanConfirm: the completion has keys that choose the item selected.
 	CanConfirm bool `json:"canConfirm"`
+	// CanCancel: the completion has keys that cancel it (the text before
+	// the item inserted comes back).
+	CanCancel bool `json:"canCancel"`
 }
 
 // Result is the answer to handle.
@@ -167,6 +170,10 @@ type Result struct {
 	// sent from here: they may have special keys ("\<Cmd>"), whose bytes
 	// are not UTF-8, and a result goes through JSON in Neovim.
 	CompletionConfirm bool `json:"completionConfirm"`
+	// CompletionCancel: Vim cancels the completion (the cancel of
+	// g:goda_skk#completion_backend): the reading the item replaced comes
+	// back, still a reading.
+	CompletionCancel bool `json:"completionCancel"`
 }
 
 // handle runs fn ("handleKey", "enable", "disable", "toggle",
@@ -209,6 +216,16 @@ func (p *Plugin) run(ctx context.Context, h sdk.Host, fn string, keys []string, 
 	}
 	// Only now is it known where the last conversion was typed.
 	resolved := c.resolvePendingKakutei()
+	if st.PumVisible && fn == "handleKey" && len(keys) == 1 && st.Selected >= 0 && st.CanCancel &&
+		c.pre.current != "" && keyFunction(c, keys[0]) == "cancel" {
+		// <C-g> on an item inserted over the reading cancels the
+		// completion, not the reading, which comes back to be typed
+		// again (#6). Before the check below: the item is not the
+		// pre-edit.
+		res := p.result("")
+		res.CompletionCancel = true
+		return res, nil
+	}
 	// The buffer is not what the pre-edit says (a completion changed it,
 	// or the cursor moved): start over from there.
 	if st.Mode != "t" && !strings.HasSuffix(st.PrevInput, c.text()) {

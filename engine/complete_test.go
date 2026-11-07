@@ -192,3 +192,30 @@ func TestCompleteDoneAfterGather(t *testing.T) {
 		t.Errorf("accepted: %q", got)
 	}
 }
+
+// <C-g> with an item inserted over the reading cancels the completion: the
+// reading stays, to be typed on (#6).
+func TestCancelCompletion(t *testing.T) {
+	s := newSim(t, Config{})
+	s.typ("Kan")
+	s.uninserted, s.line = s.line, "感じ"
+	s.pum, s.selected = true, 0
+	s.typ("<c-g>")
+	if !s.res.CompletionCancel || s.res.Keys != "" || s.line != "▽かn" || s.preedit() != "▽かn" {
+		t.Errorf("cancel: %+v %q %q", s.res, s.line, s.preedit())
+	}
+	s.typ("ji ")
+	if got := s.preedit(); got != "▼漢字" {
+		t.Errorf("on: %q", got)
+	}
+	s.typ("<c-g><c-g>")
+
+	// Nothing selected: <C-g> cancels the reading, as before.
+	s.typ("Kan")
+	s.pum = true
+	s.typ("<c-g>")
+	s.pum = false
+	if s.res.CompletionCancel || s.preedit() != "" {
+		t.Errorf("not selected: %v %q", s.res.CompletionCancel, s.preedit())
+	}
+}

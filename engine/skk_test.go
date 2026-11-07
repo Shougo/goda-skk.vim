@@ -73,6 +73,8 @@ type sim struct {
 	// (-1: none).
 	pum      bool
 	selected int
+	// uninserted is the line the cancel of the completion brings back.
+	uninserted string
 }
 
 func newSim(t *testing.T, cfg Config) *sim {
@@ -140,13 +142,17 @@ func (s *sim) call(fn string, keys ...string) Result {
 	s.p.mu.Lock()
 	res, err := s.p.run(context.Background(), s, fn, keys, Status{
 		Mode: s.mode, PrevInput: prev, Bufnr: 1, Lnum: lnum, Selected: s.selected,
-		PumVisible: s.pum, CanConfirm: s.pum,
+		PumVisible: s.pum, CanConfirm: s.pum, CanCancel: s.pum,
 	}, s.on)
 	s.p.mu.Unlock()
 	if err != nil {
 		s.t.Fatal(err)
 	}
 	s.apply(res.Keys)
+	if res.CompletionCancel {
+		// As Vim does: the cancel of the completion.
+		s.line, s.pum, s.selected = s.uninserted, false, -1
+	}
 	if r := res.Restore; r != nil {
 		prefix, prev, lnum := s.cursorLine()
 		if r.Lnum == lnum {
