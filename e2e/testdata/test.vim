@@ -70,6 +70,19 @@ function! s:run() abort
   call s:check('popup', s:popup, ['a: 完治', 's: 関知'])
   call s:check('popup choice', getline(1), '関知')
 
+  " With a border (goda_skk#popup#config()), counted to fit it: three rows
+  " under the cursor take the two candidates, not with the border.
+  call goda_skk#popup#config(#{opts: has('nvim') ? #{border: 'single'} : #{border: []}})
+  %delete _
+  call setline(1, repeat(['x'], &lines))
+  let row = &lines - 3 - (has('nvim') ? &cmdheight : 0)
+  call cursor(row, 1)
+  let s:popup = []
+  call feedkeys("A\<C-j>Kanji     \<Cmd>let s:popup = [s:popup_above(row), len(s:popup_lines())]\<CR>"
+        \ . "\<C-g>\<C-g>\<Esc>", 'xt')
+  call s:check('popup border above', s:popup, [1, 2])
+  call goda_skk#popup#config({})
+
   " The user dictionary learned: 関知 comes first now.
   call s:check('learned', s:type("\<C-j>Kanji \<C-j>"), ['関知'])
   call s:check('user dictionary', readfile($GODA_SKK_USER_JISYO)->filter('v:val =~# "^かんじ"'),
@@ -321,6 +334,23 @@ function! s:popup_row() abort
   endif
   let ids = popup_list()
   return empty(ids) ? 0 : popup_getpos(ids[0]).line
+endfunction
+
+" Is the popup, with its border, above the screen row {row}? Headless
+" Neovim does not place a float by its anchor: the anchor says it there.
+" Vim moves a popup that does not fit up: its bottom says it.
+function! s:popup_above(row) abort
+  redraw
+  if has('nvim')
+    let wins = filter(nvim_list_wins(), 'nvim_win_get_config(v:val).relative !=# ""')
+    return !empty(wins) && nvim_win_get_config(wins[0]).anchor ==# 'SW'
+  endif
+  let ids = popup_list()
+  if empty(ids)
+    return v:false
+  endif
+  let pos = popup_getpos(ids[0])
+  return pos.line + pos.height - 1 < a:row
 endfunction
 
 " The screen column of the popup.
