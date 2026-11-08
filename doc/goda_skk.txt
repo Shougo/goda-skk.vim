@@ -12,6 +12,7 @@ Functions		|goda-skk-functions|
 Variables		|goda-skk-variables|
 Events			|goda-skk-events|
 Highlight		|goda-skk-highlight|
+Candidates popup	|goda-skk-popup|
 State popup		|goda-skk-state-popup|
 Configuration		|goda-skk-config|
 Dictionaries		|goda-skk-dictionaries|
@@ -243,6 +244,27 @@ GodaSkkHenkanSelect	A candidate (▼漢字).
 
 With them, the markers can go: `MarkerHenkan: new("")` (|goda-skk-config|).
 
+==============================================================================
+CANDIDATES POPUP                                              *goda-skk-popup*
+
+The candidates after ShowCandidatesCount (|goda-skk-config|) are listed in a
+popup under the cursor (above it when there is no room), or over the command
+line.  It has no border by default.
+
+goda_skk#popup#config({config})                      *goda_skk#popup#config()*
+		{config} is a dictionary:
+		opts	The options of |popup_create()| (Vim) or
+			nvim_open_win() (Neovim), over those that place the
+			popup; its size comes from the candidates.  The
+			border and the padding are counted to fit it on the
+			screen.
+
+For example, with a border: >vim
+
+	call goda_skk#popup#config(#{
+	      \   opts: has('nvim') ? #{border: 'rounded'} : #{border: []},
+	      \ })
+<
 ==============================================================================
 STATE POPUP                                             *goda-skk-state-popup*
 
