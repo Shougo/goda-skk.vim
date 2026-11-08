@@ -536,8 +536,9 @@ function! s:autocmds() abort
     " input.
     autocmd ModeChanged *:n,*:nt call s:reset()
     " Replace mode (<Insert>) is not for the input method (#29 of
-    " skkeleton.nvim).
-    autocmd ModeChanged i*:R* call s:reset()
+    " skkeleton.nvim). Not by the pattern "i*:R*": with 'fileignorecase'
+    " (macOS, Windows) it matches "r?" too, the confirm() of purgeCandidate.
+    autocmd ModeChanged i*:* if v:event.new_mode =~# '^R' | call s:reset() | endif
     " Back from a command of <C-o>, which may have moved the cursor: the
     " pre-edit left there starts over (#117 of skkeleton.nvim).
     autocmd ModeChanged i*:ni* call s:ctrl_o_enter()
