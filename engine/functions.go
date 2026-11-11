@@ -376,9 +376,16 @@ func suffix(c *Context, _ string) {
 // registerWord asks for the word of the reading when there are no more
 // candidates: Vim asks on the command line (where the input method works
 // too, with a context of its own) and tells it with registerDone. Until
-// then, the conversion stays as it was.
+// then, the conversion stays as it was. In an expression (<C-r>=), whose
+// command line cannot have a prompt in it, the reading is confirmed as it
+// is, with its okurigana (#244 of skkeleton.nvim).
 func registerWord(c *Context) bool {
 	s := &c.state
+	if c.vimMode == "c" && c.cmdtype == "=" {
+		s.kind = stateInput
+		kakutei(c)
+		return true
+	}
 	prompt := "[辞書登録] " + s.henkanFeed
 	if s.mode == modeOkuriAri {
 		prompt += "*" + s.okuriFeed

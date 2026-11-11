@@ -9,7 +9,7 @@
 " The version of this Vim script that the binary goes with (ScriptVersion of
 " its Go side): goda.vim refuses a binary of another one, and says to build
 " it again. Bumped with it when they no longer work together.
-let s:version = #{version: 3, module: 'github.com/Shougo/goda-skk.vim'}
+let s:version = #{version: 4, module: 'github.com/Shougo/goda-skk.vim'}
 
 let g:goda_skk#enabled = v:false
 let g:goda_skk#mode = ''
@@ -121,7 +121,7 @@ function! s:status() abort
   endif
   return #{mode: mode, prevInput: prev, bufnr: bufnr('%'), lnum: line('.'),
         \ pumVisible: visible, selected: selected, canConfirm: confirm,
-        \ canCancel: cancel}
+        \ canCancel: cancel, cmdtype: mode ==# 'c' ? getcmdtype() : ''}
 endfunction
 
 " The popup menu of insert mode: g:goda_skk#completion_backend.
@@ -149,6 +149,12 @@ function! goda_skk#handle(func, keys = []) abort
     echohl WarningMsg | echomsg 'goda-skk: not in Replace mode' | echohl None
     return ''
   endif
+  " A key typed in the command line of a pre-edit left by an inner one:
+  " nothing was put in it.
+  if !empty(get(s:, 'outer_stale', {})) && mode() ==# 'c'
+        \ && getcmdtype() ==# s:outer_stale.at.cmdtype
+    call s:clear_outer_stale()
+  endif
   try
     let r = goda#request('skk', 'handle', a:func, a:keys, s:status(),
           \ g:goda_skk#enabled)
@@ -161,6 +167,7 @@ function! goda_skk#handle(func, keys = []) abort
   let keys = (r.enable && !g:goda_skk#enabled || r.disable)
         \ && s:completion('visible', v:false) ? s:completion('close', '') : ''
   if r.enable && !g:goda_skk#enabled
+    let s:mapped_keys = r.mappedKeys
     call s:enable(r.mappedKeys)
   endif
   let g:goda_skk#state = #{phase: r.phase, henkanFeed: r.henkanFeed}
@@ -241,12 +248,7 @@ function! s:remove_stale(stale, text) abort
   if at.mode ==# 'c' && mode ==# 'c' && getcmdtype() !=# at.cmdtype
     " A command line in the command line (<C-r>=): the pre-edit is in the
     " outer one, which loses it when it is back (#206 of skkeleton.nvim).
-    let s:outer_stale = #{at: at, stale: a:stale, text: a:text}
-    augroup goda_skk_outer_stale
-      autocmd!
-      autocmd CmdlineChanged * call s:remove_outer_stale()
-      autocmd CmdlineLeave * call s:leave_outer_stale()
-    augroup END
+    call s:set_outer_stale(at, a:stale, a:text)
     return
   endif
   if at.mode ==# 'c' && mode ==# 'c' && getcmdtype() ==# at.cmdtype
@@ -287,6 +289,17 @@ function! s:remove_stale(stale, text) abort
   call cursor(line('.'), pos)
 endfunction
 
+" The pre-edit {stale} at {at} in the command line of an inner one goes
+" when the outer one changes.
+function! s:set_outer_stale(at, stale, text) abort
+  let s:outer_stale = #{at: a:at, stale: a:stale, text: a:text}
+  augroup goda_skk_outer_stale
+    autocmd!
+    autocmd CmdlineChanged * call s:remove_outer_stale()
+    autocmd CmdlineLeave * call s:leave_outer_stale()
+  augroup END
+endfunction
+
 " Back in the command line of the pre-edit left by an inner one: it goes.
 function! s:remove_outer_stale() abort
   let outer = get(s:, 'outer_stale', {})
@@ -311,6 +324,80 @@ function! s:clear_outer_stale() abort
   augroup goda_skk_outer_stale
     autocmd!
   augroup END
+endfunction
+
+" A command line in the command line of the input (<C-r>=, input()): its
+" keys have an input of their own, and the input of the outer one is put
+" aside meanwhile, to go on when it is back (#246 of skkeleton.nvim). The
+" command lines that do not are counted too ({} in s:nested): they end
+" first.
+let s:nested = []
+augroup goda_skk_nested
+  autocmd!
+  autocmd CmdlineEnter * call s:nested_enter()
+  autocmd CmdlineLeave * call s:nested_leave()
+augroup END
+
+function! s:nested_enter() abort
+  " (Leaving the command line resets the input: enabled there, it is still
+  " the outer one.)
+  if !g:goda_skk#enabled || get(s:, 'enabled_mode', '') !=# 'c'
+        \ || get(s:, 'registering', 0) > 0
+    if !empty(s:nested)
+      call add(s:nested, {})
+    endif
+    return
+  endif
+  try
+    let r = goda#request('skk', 'push')
+  catch
+    call add(s:nested, {})
+    return
+  endtry
+  call add(s:nested, #{mode: g:goda_skk#mode, state: g:goda_skk#state,
+        \ popup: get(s:, 'popup', []), pre_edit: get(s:, 'pre_edit', ''),
+        \ pre_edit_text: get(s:, 'pre_edit_text', ''),
+        \ pre_edit_at: get(s:, 'pre_edit_at', {})})
+  call goda_skk#popup#close()
+  call goda_skk#highlight#clear()
+  let g:goda_skk#state = #{phase: r.phase, henkanFeed: r.henkanFeed}
+  let [s:popup, s:pre_edit, s:pre_edit_text, s:pre_edit_at] = [[], '', '', {}]
+  call s:set_mode(r.mode)
+endfunction
+
+function! s:nested_leave() abort
+  if empty(s:nested)
+    return
+  endif
+  let outer = remove(s:nested, -1)
+  if empty(outer)
+    return
+  endif
+  if goda#is_running('skk')
+    try
+      call goda#request('skk', 'pop')
+    catch
+    endtry
+  endif
+  call goda_skk#popup#close()
+  call goda_skk#highlight#clear()
+  " Disabled in the inner one: enabled again, as it was.
+  if !g:goda_skk#enabled
+    call s:enable(get(s:, 'mapped_keys', []))
+  endif
+  let g:goda_skk#state = outer.state
+  let [s:popup, s:pre_edit, s:pre_edit_text, s:pre_edit_at] =
+        \ [outer.popup, outer.pre_edit, outer.pre_edit_text, outer.pre_edit_at]
+  call s:set_mode(outer.mode)
+  if !empty(s:popup)
+    call goda_skk#popup#open(s:popup)
+  endif
+  call goda_skk#highlight#update(g:goda_skk#state.phase, s:pre_edit)
+  if !get(v:event, 'abort', v:false) && s:pre_edit !=# '' && !empty(outer.pre_edit_at)
+    " What it gives is put after the pre-edit, which goes then: it is not
+    " the input any more (#206 of skkeleton.nvim).
+    call s:set_outer_stale(outer.pre_edit_at, s:pre_edit, s:pre_edit_text)
+  endif
 endfunction
 
 " After the keys were typed: the list of candidates, the highlight of the
@@ -630,6 +717,8 @@ function! s:reset() abort
     " The window the prompt belongs to is entered again.
     return
   endif
+  " The outer command lines have no input to go on with either.
+  call map(s:nested, '{}')
   if goda#is_running('skk')
     call s:confirm_job()
     call goda#notify('skk', 'reset')

@@ -61,8 +61,10 @@ type sim struct {
 	p    *Plugin
 	line string
 	mode string // "i" or "c"
-	on   bool
-	res  Result
+	// cmdtype is getcmdtype() on the command line.
+	cmdtype string
+	on      bool
+	res     Result
 	// confirm is the answer to confirm().
 	confirm int
 	// after is the text after the cursor.
@@ -142,7 +144,7 @@ func (s *sim) call(fn string, keys ...string) Result {
 	s.p.mu.Lock()
 	res, err := s.p.run(context.Background(), s, fn, keys, Status{
 		Mode: s.mode, PrevInput: prev, Bufnr: 1, Lnum: lnum, Selected: s.selected,
-		PumVisible: s.pum, CanConfirm: s.pum, CanCancel: s.pum,
+		PumVisible: s.pum, CanConfirm: s.pum, CanCancel: s.pum, Cmdtype: s.cmdtype,
 	}, s.on)
 	s.p.mu.Unlock()
 	if err != nil {
@@ -820,6 +822,78 @@ func TestRegisterWord(t *testing.T) {
 }
 
 // Bugs of skkeleton.nvim (and skkeleton) that goda-skk had too.
+
+// #244: no candidate in an expression (<C-r>=), whose command line cannot
+// have the prompt of a registration: the reading is confirmed as it is,
+// with its okurigana.
+func TestNoCandidateInExpression(t *testing.T) {
+	s := newSim(t, Config{})
+	s.mode, s.cmdtype, s.line = "c", "=", ""
+	s.p.c = s.p.newContext()
+	s.register = func(prompt string) string {
+		t.Errorf("registration: %q", prompt)
+		return ""
+	}
+	s.typ("Mikan ")
+	if s.line != "みかん" || s.res.Phase != "input" || s.res.Register != "" {
+		t.Errorf("no candidate: %q %+v", s.line, s.res)
+	}
+	s.typ("TabeRu")
+	if s.line != "みかんたべる" || s.res.Phase != "input" {
+		t.Errorf("okuri: %q %+v", s.line, s.res)
+	}
+	// The other command lines still register.
+	s.cmdtype, s.line = ":", ""
+	registered := false
+	s.register = func(string) string { registered = true; return "" }
+	s.typ("Mikan ")
+	if !registered {
+		t.Errorf("no registration on %q", s.cmdtype)
+	}
+}
+
+// #246: a command line in the command line (<C-r>=) has a context of its
+// own, in the same mode; back from it, the input of the outer one goes on.
+func TestNestedCommandLine(t *testing.T) {
+	s := newSim(t, Config{})
+	s.mode, s.cmdtype, s.line = "c", ":", ""
+	s.p.c = s.p.newContext()
+	s.typ("qKan")
+	if s.line != "▽カn" {
+		t.Fatalf("outer: %q", s.line)
+	}
+	outer := s.line
+	if _, err := s.p.push(context.Background(), s, nil); err != nil {
+		t.Fatal(err)
+	}
+	if s.p.c.mode != ModeKata || s.p.c.text() != "" {
+		t.Errorf("inner: %q %q", s.p.c.mode, s.p.c.text())
+	}
+	s.cmdtype, s.line = "=", ""
+	s.typ("Ka<c-j>")
+	if s.line != "カ" {
+		t.Errorf("inner line: %q", s.line)
+	}
+	// <C-c>
+	if _, err := s.p.pop(context.Background(), s, nil); err != nil {
+		t.Fatal(err)
+	}
+	s.cmdtype, s.line = ":", outer
+	s.typ("a")
+	if s.line != "▽カナ" || s.res.Stale != "" {
+		t.Errorf("back: %q %+v", s.line, s.res)
+	}
+	// Nothing to pop.
+	if _, err := s.p.pop(context.Background(), s, nil); err != nil || s.p.c.text() != "▽カナ" {
+		t.Errorf("pop again: %v %q", err, s.p.c.text())
+	}
+	// Reset forgets them.
+	s.p.push(context.Background(), s, nil)
+	s.p.reset(context.Background(), s, nil)
+	if len(s.p.nested) != 0 {
+		t.Errorf("nested after reset: %d", len(s.p.nested))
+	}
+}
 
 // #41: a rule of henkanFirst confirmed by the key after it types that key
 // once.

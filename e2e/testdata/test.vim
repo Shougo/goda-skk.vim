@@ -160,6 +160,30 @@ function! s:run() abort
   let s:cl = ''
   call feedkeys(":\<C-j>Kan\<C-r>=1\<CR>\<Cmd>let s:cl = getcmdline()\<CR>\<C-u>\<Esc>", 'xt')
   call s:check('cmdline expression register', s:cl, '1')
+  " No candidate in the expression, which cannot have the prompt of a
+  " registration: the reading is confirmed as it is, with its okurigana
+  " (#244 of skkeleton.nvim).
+  let [s:cl, s:st] = ['', []]
+  call feedkeys(":\<C-j>\<C-r>='Ka \<Cmd>let s:st = [getcmdtype(), getcmdline(), g:goda_skk#state.phase]\<CR>"
+        \ . "KaKu'\<CR>\<Cmd>let s:cl = getcmdline()\<CR>\<C-u>\<Esc>", 'xt')
+  call s:check('cmdline expression no candidate', [s:st, s:cl], [['=', "'か", 'input'], 'かかく'])
+  " The input of the command line goes on after the expression is
+  " cancelled; in the expression, the input is of its own (#246 of
+  " skkeleton.nvim).
+  let [s:cl, s:st] = ['', []]
+  call feedkeys(":\<C-j>Kan\<C-r>='Ka\<C-j>'\<C-c>"
+        \ . "\<Cmd>let s:st = [getcmdline(), g:goda_skk#state.henkanFeed]\<CR>"
+        \ . "a\<Cmd>let s:cl = getcmdline()\<CR>\<C-u>\<Esc>", 'xt')
+  call s:check('cmdline expression cancelled', [s:st, s:cl], [['▽かn', 'か'], '▽かな'])
+  " The mode goes into the expression; disabled there, the input is enabled
+  " again back in the command line.
+  let [s:cl, s:st] = ['', []]
+  call feedkeys(":\<C-j>qKan\<C-r>=\<Cmd>let s:st = [g:goda_skk#mode]\<CR>l"
+        \ . "\<Cmd>let s:st += [g:goda_skk#enabled]\<CR>\<C-c>"
+        \ . "\<Cmd>let s:st += [g:goda_skk#enabled, g:goda_skk#mode]\<CR>"
+        \ . "a\<Cmd>let s:cl = getcmdline()\<CR>\<C-u>\<Esc>", 'xt')
+  call s:check('cmdline expression mode', [s:st, s:cl],
+        \ [['kata', v:false, v:true, 'kata'], '▽カナ'])
   " The command-line window: the pre-edit is copied into it, as text (#205
   " of skkeleton.nvim). Vim leaves the window when it has made the one of
   " the command-line window (which feedkeys() cannot open): as a window

@@ -44,6 +44,7 @@ type Context struct {
 	keymaps map[string]keymap
 
 	vimMode   string // "i", "c" or "t"
+	cmdtype   string // getcmdtype() on the command line
 	prevInput string // the text before the cursor
 	// Where the cursor is: the buffer and the line.
 	bufnr, lnum int
@@ -73,6 +74,12 @@ func newContext(cfg *Config, lib *library) *Context {
 	c := &Context{cfg: cfg, lib: lib, mode: ModeHira, table: cfg.KanaTable, keymaps: defaultKeymaps()}
 	c.state.reset(c.table, false, false)
 	return c
+}
+
+// setStatus takes where the input goes from the status of Vim.
+func (c *Context) setStatus(st Status) {
+	c.vimMode, c.prevInput, c.cmdtype = st.Mode, st.PrevInput, st.Cmdtype
+	c.bufnr, c.lnum = st.Bufnr, st.Lnum
 }
 
 // resetState puts the state back to direct input; keep is "converter" and

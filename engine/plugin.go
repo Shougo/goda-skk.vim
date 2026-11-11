@@ -31,6 +31,10 @@ type Plugin struct {
 	// outer are the contexts put aside while Vim asks for a word to
 	// register (registerWord): the keys of the prompt have their own.
 	outer []outerContext
+	// nested are the contexts of the command lines put aside while Vim is
+	// in a command line in them (<C-r>=): the inner one has its own, and
+	// the outer one is back as it was when it is (#246 of skkeleton.nvim).
+	nested []outerContext
 	// stale is the pre-edit left where the cursor is no more (the input
 	// started over), for Result.Stale; staleText is its text without the
 	// markers, for Result.StaleText.
@@ -98,7 +102,7 @@ func (p *Plugin) Name() string { return PluginName }
 // binary goes with (sdk.ScriptVersioner): goda.vim refuses a binary of
 // another one and says to build it again. Bump it with s:version there when
 // the Vim script and the binary no longer work together.
-const ScriptVersion = 3
+const ScriptVersion = 4
 
 func (p *Plugin) ScriptVersion() int { return ScriptVersion }
 
@@ -107,6 +111,8 @@ func (p *Plugin) Handlers() map[string]sdk.Handler {
 		"handle":  p.handle,
 		"reset":   p.reset,
 		"preedit": p.preedit,
+		"push":    p.push,
+		"pop":     p.pop,
 	}
 }
 
@@ -124,6 +130,8 @@ type Status struct {
 	// CanCancel: the completion has keys that cancel it (the text before
 	// the item inserted comes back).
 	CanCancel bool `json:"canCancel"`
+	// Cmdtype is getcmdtype() on the command line.
+	Cmdtype string `json:"cmdtype"`
 }
 
 // Result is the answer to handle.
@@ -207,8 +215,7 @@ func (p *Plugin) run(ctx context.Context, h sdk.Host, fn string, keys []string, 
 	c := p.c
 	c.ctx, c.host = ctx, h
 	c.popup, c.disable, c.reenable = nil, false, false
-	c.vimMode, c.prevInput = st.Mode, st.PrevInput
-	c.bufnr, c.lnum = st.Bufnr, st.Lnum
+	c.setStatus(st)
 	// Where the cursor goes back to after kakuteiUndo is only good while
 	// something is typed there.
 	if !c.hasPendingInput() {
@@ -252,8 +259,7 @@ func (p *Plugin) run(ctx context.Context, h sdk.Host, fn string, keys []string, 
 		// Enabling starts afresh; while converting, the key is typed.
 		c = p.newContext()
 		c.ctx, c.host = ctx, h
-		c.vimMode, c.prevInput = st.Mode, st.PrevInput
-		c.bufnr, c.lnum = st.Bufnr, st.Lnum
+		c.setStatus(st)
 		p.c = c
 		if p.cfg.KeepMode && p.lastMode != ModeHira {
 			if f := modeFunctions[p.lastMode]; f != nil {
@@ -372,7 +378,37 @@ func (p *Plugin) result(keys string) Result {
 func (p *Plugin) reset(context.Context, sdk.Host, []any) (any, error) {
 	p.mu.Lock()
 	defer p.mu.Unlock()
-	p.c, p.outer = p.newContext(), nil
+	p.c, p.outer, p.nested = p.newContext(), nil, nil
+	return nil, nil
+}
+
+// push puts the context aside: Vim entered a command line in the command
+// line of the input (<C-r>=), whose keys have a context of their own, in
+// the same mode.
+func (p *Plugin) push(ctx context.Context, h sdk.Host, _ []any) (any, error) {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	p.nested = append(p.nested, outerContext{p.c, p.lastMode})
+	c := p.newContext()
+	c.ctx, c.host = ctx, h
+	if f := modeFunctions[p.c.mode]; f != nil && p.c.mode != ModeHira {
+		f(c, "")
+	}
+	p.c = c
+	return p.result(""), nil
+}
+
+// pop brings back the context push put aside: Vim is back in its command
+// line.
+func (p *Plugin) pop(context.Context, sdk.Host, []any) (any, error) {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	if len(p.nested) == 0 {
+		return nil, nil
+	}
+	o := p.nested[len(p.nested)-1]
+	p.nested = p.nested[:len(p.nested)-1]
+	p.c, p.lastMode = o.c, o.lastMode
 	return nil, nil
 }
 
