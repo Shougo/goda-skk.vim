@@ -121,6 +121,10 @@ FUNCTIONS                                                 *goda-skk-functions*
 goda_skk#build()                                            *goda_skk#build()*
 		Build the configuration, |g:goda_skk#config_dir|, into
 		|g:goda_skk#binary| with "go build", and stop a running binary.
+		NOTE: The binary is built by itself when it starts and there
+		is none, or it is of another version than the Vim script (see
+		"build" of |goda#register()|): not one of |g:goda_skk#binary|
+		set by you.
 
 goda_skk#enable()                                          *goda_skk#enable()*
 goda_skk#disable()                                        *goda_skk#disable()*

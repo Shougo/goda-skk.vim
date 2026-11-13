@@ -40,6 +40,22 @@ function! s:binary() abort
   return s:cache_dir() . '/goda-skk' . (has('win32') ? '.exe' : '')
 endfunction
 
+" The options of goda#register(): the version of the Vim script, and how to
+" build the binary when there is none or it is of another version (goda.vim
+" builds it then). Not for the binary of g:goda_skk#binary: the user builds it.
+function! s:register_opts() abort
+  if exists('g:goda_skk#binary')
+    return s:version
+  endif
+  return extend(#{build: function('s:build_binary'), bin: s:binary()}, s:version)
+endfunction
+
+" The build of the binary for goda.vim, as it starts it (nothing else: it
+" is not running).
+function! s:build_binary() abort
+  call goda#build(#{name: 'skk', dir: s:config_dir(), bin: s:binary()})
+endfunction
+
 function! s:config_dir() abort
   if exists('g:goda_skk#config_dir')
     return expand(g:goda_skk#config_dir)
@@ -54,7 +70,7 @@ endfunction
 function! goda_skk#build() abort
   call goda_skk#disable()
   call goda#build(#{name: 'skk', dir: s:config_dir(), bin: s:binary()})
-  call goda#register('skk', function('s:start'), s:version)
+  call goda#register('skk', function('s:start'), s:register_opts())
 endfunction
 
 " Start the binary: goda.vim calls it when a key needs the plugin "skk" and no
@@ -75,7 +91,7 @@ function! s:start() abort
 endfunction
 
 " (Again after a build: a start that failed is tried again.)
-call goda#register('skk', function('s:start'), s:version)
+call goda#register('skk', function('s:start'), s:register_opts())
 
 " ---------------------------------------------------------------------------
 " Keys
