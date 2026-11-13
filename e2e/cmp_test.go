@@ -24,11 +24,17 @@ func TestCompletion(t *testing.T) {
 		t.Run(ed.name, func(t *testing.T) {
 			bin := editor(t, ed.env, ed.name)
 			env := setupBinary(t, "./cmpbin")
-			out, err := exec.Command("go", "list", "-m", "-f", "{{.Dir}}", "github.com/Shougo/goda-cmp.vim").Output()
-			if err != nil {
-				t.Fatalf("go list: %v", err)
+			// The Vim script of goda-cmp.vim and of its UI (cmpbin).
+			for v, mod := range map[string]string{
+				"GODA_CMP_DIR":    "github.com/Shougo/goda-cmp.vim",
+				"GODA_CMP_UI_DIR": "github.com/Shougo/goda-cmp-ui-native.vim",
+			} {
+				out, err := exec.Command("go", "list", "-m", "-f", "{{.Dir}}", mod).Output()
+				if err != nil {
+					t.Fatalf("go list: %v", err)
+				}
+				env = append(env, v+"="+strings.TrimSpace(string(out)))
 			}
-			env = append(env, "GODA_CMP_DIR="+strings.TrimSpace(string(out)))
 			vimrc, err := filepath.Abs("testdata/cmp.vim")
 			if err != nil {
 				t.Fatal(err)

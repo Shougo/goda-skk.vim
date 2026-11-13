@@ -6,8 +6,8 @@ import (
 	"log"
 	"os"
 
+	"github.com/Shougo/goda-cmp-ui-native.vim/ext/ui/native"
 	"github.com/Shougo/goda-cmp.vim/cmp"
-	"github.com/Shougo/goda-cmp.vim/ext/ui/native"
 
 	"github.com/Shougo/goda-skk.vim/cmp/source/skk"
 	"github.com/Shougo/goda-skk.vim/cmp/source/skkokuri"

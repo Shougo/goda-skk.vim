@@ -2,6 +2,10 @@
 " skkeleton user (see main.go for skkeleton#config() and the completion). skkeleton-state-popup and
 " skkeleton-henkan-highlight are built in.
 
+" The plugins: goda.vim, goda-cmp.vim, goda-cmp-ui-pum.vim (the UI "pum", of
+" main.go) with pum.vim, and goda-skk.vim. (The extensions of main.go are of
+" goda-cmp-ext; it has no Vim script.)
+
 " The input method is in the binary of goda-cmp.vim (main.go is the
 " goda-cmp.vim configuration, built with goda_cmp#build()).
 let g:goda_skk#binary = has('nvim')

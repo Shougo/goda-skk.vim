@@ -10,12 +10,12 @@ import (
 	"log"
 	"runtime"
 
+	"github.com/Shougo/goda-cmp-ext/ext/filter/matcherhead"
+	"github.com/Shougo/goda-cmp-ext/ext/filter/sorterrank"
+	"github.com/Shougo/goda-cmp-ext/ext/source/around"
+	"github.com/Shougo/goda-cmp-ext/ext/source/line"
+	"github.com/Shougo/goda-cmp-ui-pum.vim/ext/ui/pum"
 	"github.com/Shougo/goda-cmp.vim/cmp"
-	"github.com/Shougo/goda-cmp.vim/ext/filter/matcherhead"
-	"github.com/Shougo/goda-cmp.vim/ext/filter/sorterrank"
-	"github.com/Shougo/goda-cmp.vim/ext/source/around"
-	"github.com/Shougo/goda-cmp.vim/ext/source/line"
-	"github.com/Shougo/goda-cmp.vim/ext/ui/pum"
 
 	"github.com/Shougo/goda-skk.vim/cmp/source/skk"
 	"github.com/Shougo/goda-skk.vim/cmp/source/skkokuri"

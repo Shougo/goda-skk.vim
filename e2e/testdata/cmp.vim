@@ -4,6 +4,7 @@ set nocompatible noswapfile encoding=utf-8 ttimeout ttimeoutlen=10
 set completeopt=menuone,noinsert,noselect
 execute 'set runtimepath^=' . fnameescape($GODA_VIM_DIR)
 execute 'set runtimepath^=' . fnameescape($GODA_CMP_DIR)
+execute 'set runtimepath^=' . fnameescape($GODA_CMP_UI_DIR)
 execute 'set runtimepath^=' . fnameescape($GODA_SKK_DIR)
 let g:goda_cmp#binary = $GODA_SKK_BINARY
 let g:goda_skk#binary = $GODA_SKK_BINARY
