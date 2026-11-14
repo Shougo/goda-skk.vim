@@ -41,11 +41,25 @@ Requirements: Go 1.26 or later; Vim 9.1 or later (|+job| |+channel|
 
 Install `Shougo/goda.vim` and `Shougo/goda-skk.vim` with your plugin manager,
 then make your configuration, a Go module of your own (keep it in your
-dotfiles):
+dotfiles): its main.go,
+>go
+	package main
+
+	import "github.com/Shougo/goda-skk.vim/engine"
+
+	func main() {
+		engine.Main(engine.Config{
+			Dictionaries: []engine.Dictionary{
+				engine.NewJisyo("~/.skk/SKK-JISYO.L", ""),
+			},
+			EggLikeNewline: true,
+		})
+	}
+<
+and the module of it:
 >sh
 	mkdir -p ~/.vim/goda-skk && cd ~/.vim/goda-skk
 	# Neovim: ~/.config/nvim/goda-skk
-	cp /path/to/goda-skk.vim/examples/config/main.go .
 	go mod init goda-skk-config
 	go get github.com/Shougo/goda-skk.vim@latest
 	go mod tidy
@@ -535,7 +549,9 @@ Use the sources while the input method is enabled:
 With the UI "pum", tell the input method about pum.vim
 (|g:goda_skk#completion_backend|).
 
-examples/goda-cmp has a whole configuration, translated from skkeleton's.
+The author's configuration of goda-cmp.vim completes with them:
+https://github.com/Shougo/shougo-s-github/blob/master/vim/rc/goda-cmp/main.go
+https://github.com/Shougo/shougo-s-github/blob/master/vim/rc/goda-skk.vim
 
 ==============================================================================
 KEY FUNCTIONS                                         *goda-skk-key-functions*

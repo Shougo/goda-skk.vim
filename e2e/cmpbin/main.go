@@ -33,7 +33,7 @@ func main() {
 		UI:      "native",
 		Sources: []string{"skk", "skkokuri"},
 		SourceOptions: map[string]cmp.SourceOption{
-			// As examples/goda-cmp/vimrc.vim patches it: katakana only, which
+			// As a configuration of skkeleton's patches it: katakana only, which
 			// the reading does not match (CompletePosition says where it is).
 			"_": {Matchers: []string{}, Sorters: []string{}, KeywordPattern: "[ァ-ヮア-ンー]+"},
 		},

@@ -16,8 +16,9 @@ sources of skkeleton). Besides dictionary files, an SKK server
 (`dictionary/skkserv`) and Google Japanese Input (`dictionary/google`) can
 be dictionaries.
 
-A configuration with the completion of goda-cmp.vim, translated from a
-skkeleton one, is in [examples/goda-cmp](examples/goda-cmp).
+The author's configuration of goda-cmp.vim completes with them:
+[goda-cmp/main.go](https://github.com/Shougo/shougo-s-github/blob/master/vim/rc/goda-cmp/main.go)
+and [goda-skk.vim](https://github.com/Shougo/shougo-s-github/blob/master/vim/rc/goda-skk.vim).
 
 ## Try it
 
@@ -25,17 +26,16 @@ You need Go 1.26 or newer, Vim 9.1 or newer (with `+job +channel +popupwin`)
 or Neovim 0.11 or newer, and an SKK dictionary (SKK-JISYO.L, say). Install
 `Shougo/goda.vim` and `Shougo/goda-skk.vim` with your plugin manager, then
 create your configuration, a Go module of your own (keep it in your
-dotfiles; `examples/config` is only a template to copy):
+dotfiles), with its `main.go` (below):
 
 ```sh
 mkdir -p ~/.vim/goda-skk && cd ~/.vim/goda-skk        # Neovim: ~/.config/nvim/goda-skk
-cp /path/to/goda-skk.vim/examples/config/main.go .
 go mod init goda-skk-config
 go get github.com/Shougo/goda-skk.vim@latest
 go mod tidy
 ```
 
-The configuration:
+The configuration, `main.go`:
 
 ```go
 package main

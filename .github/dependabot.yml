@@ -1,10 +1,17 @@
-# Dependabot: updates of the GitHub Actions and of the Go modules,
-# once a week, of releases at least 7 days old (time for a broken or malicious
-# release to be found).
+# Dependabot: updates of the GitHub Actions and of the Go modules, once a
+# week, of releases at least 7 days old (time for a broken or malicious
+# release to be found), all in one pull request (one for each conflicted
+# with the others in go.mod and go.sum, and they were many).
 version: 2
+multi-ecosystem-groups:
+  dependencies:
+    schedule:
+      interval: weekly
 updates:
   - package-ecosystem: gomod
     directory: /
+    patterns: ["*"]
+    multi-ecosystem-group: dependencies
     schedule:
       interval: weekly
     cooldown:
@@ -14,6 +21,8 @@ updates:
         - github.com/Shougo/*
   - package-ecosystem: github-actions
     directory: /
+    patterns: ["*"]
+    multi-ecosystem-group: dependencies
     schedule:
       interval: weekly
     cooldown:
