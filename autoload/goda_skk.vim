@@ -28,14 +28,15 @@ function! s:cache_dir() abort
   elseif has('win32') && !empty($LOCALAPPDATA)
     let base = $LOCALAPPDATA . '/vim'
   else
-    let base = expand('~/.cache/vim')
+    let base = expand('~/.cache/vim', 1)
   endif
   return base . '/goda-skk'
 endfunction
 
 function! s:binary() abort
   if exists('g:goda_skk#binary')
-    return fnamemodify(expand(g:goda_skk#binary), ':p')
+    " (Not 'wildignore': '*.exe' in it on Windows made it "".)
+    return fnamemodify(expand(g:goda_skk#binary, 1), ':p')
   endif
   return s:cache_dir() . '/goda-skk' . (has('win32') ? '.exe' : '')
 endfunction
@@ -58,9 +59,9 @@ endfunction
 
 function! s:config_dir() abort
   if exists('g:goda_skk#config_dir')
-    return expand(g:goda_skk#config_dir)
+    return expand(g:goda_skk#config_dir, 1)
   endif
-  return (has('nvim') ? stdpath('config') : expand('~/.vim')) . '/goda-skk'
+  return (has('nvim') ? stdpath('config') : expand('~/.vim', 1)) . '/goda-skk'
 endfunction
 
 " Build the configuration (a Go module in g:goda_skk#config_dir) into
