@@ -471,7 +471,9 @@ karukan.New({params})                                   *goda-skk-karukan*
 				server's default model)
 		Candidates	the number of candidates (default 5)
 		ContextLength	characters of the text before the reading
-				sent with it (default 10; new(0) for none)
+				sent with it (new(0) for none; default
+				10 for a server on the local machine,
+				none for another one)
 		BeamSearch	"" (the server's default) or "d1_greedy"
 				(faster)
 		Timeout		for a request (default time.Second)
@@ -480,8 +482,10 @@ karukan.New({params})                                   *goda-skk-karukan*
 		be reached is tried again every few seconds only.
 		The end of the text before the reading goes with it
 		(|goda-skk-context|): the model converts better knowing it.
-		The model runs on the local machine; with a URL of another
-		machine, the text goes there too.
+		By default it goes only to a server on the local machine:
+		a URL of the loopback address (127.0.0.1, [::1]) or
+		localhost.  For a server on another machine, set
+		ContextLength to send it there.
 		karukan-server is built from the karukan repository: >sh
 
 	cargo build --release -p karukan-cli --bin karukan-server
@@ -513,10 +517,10 @@ is called instead of Lookup, with the text of the line before the reading
 	word, before string) ([]string, error)
 <
 The text may be anything in the buffer: a password, a secret.  Only
-|goda-skk-karukan|, which keeps it on the local machine, is one; the
-dictionaries that ask a server on the network (|goda-skk-google|,
-|goda-skk-skkserv|) are not told it.  Write a ContextDictionary that sends
-it out of the machine only knowing that.
+|goda-skk-karukan|, which keeps it on the local machine unless told
+otherwise, is one; |goda-skk-google| is not told it, and neither is
+|goda-skk-skkserv|, whose protocol has no room for it.  Write a
+ContextDictionary that sends it out of the machine only knowing that.
 
 Readings with digits look up "#" in the dictionaries (the reading "1かい"
 finds "#かい /#1回/#3回/"), and #0-#3, #5, #8 and #9 convert the number.

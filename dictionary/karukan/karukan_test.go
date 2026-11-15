@@ -177,3 +177,27 @@ func TestContext(t *testing.T) {
 		t.Errorf("context: %q, want %q", got, want)
 	}
 }
+
+func TestContextLocal(t *testing.T) {
+	for _, c := range []struct {
+		url  string
+		n    *int
+		want int
+	}{
+		{"", nil, 10},
+		{"http://127.0.0.1:3000", nil, 10},
+		{"http://127.8.9.1:3000", nil, 10},
+		{"http://localhost:3000/", nil, 10},
+		{"http://LOCALHOST", nil, 10},
+		{"http://[::1]:3000", nil, 10},
+		{"http://192.168.1.2:3000", nil, 0},
+		{"http://karukan.example.com", nil, 0},
+		{"http://localhost.example.com", nil, 0},
+		{"http://192.168.1.2:3000", new(20), 20},
+		{"http://127.0.0.1:3000", new(0), 0},
+	} {
+		if got := *New(Params{URL: c.url, ContextLength: c.n}).p.ContextLength; got != c.want {
+			t.Errorf("%q %v: %d, want %d", c.url, c.n, got, c.want)
+		}
+	}
+}

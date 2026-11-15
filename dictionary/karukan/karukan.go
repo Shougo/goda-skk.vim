@@ -9,10 +9,11 @@
 //	},
 //
 // It converts readings without okurigana only, as one phrase, and does not
-// complete. It is an engine.ContextDictionary: the end of the text before
-// the reading (ContextLength) goes to the server with it, as the model
-// converts better knowing it. The model runs on the local machine; with a
-// URL of another machine, the text goes there. Its candidates come after those of the dictionaries before it.
+// complete. Its candidates come after those of the dictionaries before it.
+// It is an engine.ContextDictionary: the end of the text before the reading
+// (ContextLength) goes to the server with it, as the model converts better
+// knowing it; by default only to a server on the local machine (a URL of
+// the loopback address or localhost).
 // A request that is not answered in time (Timeout) gives nothing, a server
 // still loading its models gives nothing, and a server that cannot be
 // reached is tried again every few seconds only: typing does not wait for
@@ -26,6 +27,8 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"net/netip"
+	"net/url"
 	"strings"
 	"sync"
 	"time"
@@ -52,8 +55,10 @@ type Params struct {
 	// default, the full beam search) or "d1_greedy" (faster).
 	BeamSearch string
 	// ContextLength is how many characters of the text before the reading
-	// go to the server with it (default 10, as karukan's input method;
-	// new(0) for none).
+	// go to the server with it (new(0) for none). The default is 10, as
+	// karukan's input method, for a server on the local machine, and none
+	// for another one: the text may be anything in the buffer. Set it to
+	// send the text to another machine.
 	ContextLength *int
 	// Timeout bounds a request (default 1 second).
 	Timeout time.Duration
@@ -79,7 +84,11 @@ func New(p Params) *Dictionary {
 		p.Candidates = 5
 	}
 	if p.ContextLength == nil || *p.ContextLength < 0 {
-		p.ContextLength = new(10)
+		n := 0
+		if isLocal(p.URL) {
+			n = 10
+		}
+		p.ContextLength = &n
 	}
 	if p.Timeout <= 0 {
 		p.Timeout = time.Second
@@ -175,6 +184,21 @@ func (d *Dictionary) LookupContext(ctx context.Context, typ engine.HenkanType, w
 // Complete gives nothing: the server does not complete.
 func (d *Dictionary) Complete(context.Context, string) ([]engine.Entry, error) {
 	return nil, nil
+}
+
+// isLocal reports whether rawURL is on the local machine: its host is
+// localhost or a loopback address (not resolved).
+func isLocal(rawURL string) bool {
+	u, err := url.Parse(rawURL)
+	if err != nil {
+		return false
+	}
+	host := u.Hostname()
+	if strings.EqualFold(host, "localhost") {
+		return true
+	}
+	ip, err := netip.ParseAddr(host)
+	return err == nil && ip.IsLoopback()
 }
 
 // tail is the last n characters of s.
