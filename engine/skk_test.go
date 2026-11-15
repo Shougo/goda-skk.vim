@@ -2,6 +2,7 @@ package engine
 
 import (
 	"context"
+	"fmt"
 	"os"
 	"path/filepath"
 	"slices"
@@ -63,8 +64,10 @@ type sim struct {
 	mode string // "i" or "c"
 	// cmdtype is getcmdtype() on the command line.
 	cmdtype string
-	on      bool
-	res     Result
+	// getbufline: the arguments of the calls of getbufline().
+	getbufline []string
+	on         bool
+	res        Result
 	// confirm is the answer to confirm().
 	confirm int
 	// after is the text after the cursor.
@@ -101,6 +104,19 @@ func (s *sim) Call(_ context.Context, fn string, args ...any) (any, error) {
 	switch fn {
 	case "confirm":
 		return int64(s.confirm), nil
+	case "getbufline":
+		// The lines from args[1] to args[2] of those before the cursor's.
+		lines := strings.Split(s.line, "\n")
+		lines = lines[:len(lines)-1]
+		from, to := args[1].(int), args[2].(int)
+		var out []any
+		for i := from; i <= to && i <= len(lines); i++ {
+			if i >= 1 {
+				out = append(out, lines[i-1])
+			}
+		}
+		s.getbufline = append(s.getbufline, fmt.Sprint(args...))
+		return out, nil
 	case "goda_skk#_locate_kakutei":
 		// As Vim does it: the line has to start with the conversion.
 		prefix, prev, lnum := s.cursorLine()

@@ -173,7 +173,7 @@ func TestContext(t *testing.T) {
 		}
 	}
 	New(Params{URL: srv.URL}).Lookup(ctx, engine.OkuriNasi, "きしゃ")
-	if want := []string{"日の朝、駅のホームに", "ームに", "", ""}; !slices.Equal(got, want) {
+	if want := []string{"あの日の朝、駅のホームに", "ームに", "", ""}; !slices.Equal(got, want) {
 		t.Errorf("context: %q, want %q", got, want)
 	}
 }
@@ -184,12 +184,12 @@ func TestContextLocal(t *testing.T) {
 		n    *int
 		want int
 	}{
-		{"", nil, 10},
-		{"http://127.0.0.1:3000", nil, 10},
-		{"http://127.8.9.1:3000", nil, 10},
-		{"http://localhost:3000/", nil, 10},
-		{"http://LOCALHOST", nil, 10},
-		{"http://[::1]:3000", nil, 10},
+		{"", nil, 40},
+		{"http://127.0.0.1:3000", nil, 40},
+		{"http://127.8.9.1:3000", nil, 40},
+		{"http://localhost:3000/", nil, 40},
+		{"http://LOCALHOST", nil, 40},
+		{"http://[::1]:3000", nil, 40},
 		{"http://192.168.1.2:3000", nil, 0},
 		{"http://karukan.example.com", nil, 0},
 		{"http://localhost.example.com", nil, 0},

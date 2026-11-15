@@ -51,6 +51,12 @@ function! s:run() abort
   call s:check('enable again', s:type("\<C-j>a\<C-j>i"), ['あい'])
   call s:check('text before', s:type("xyz\<C-j>aiu"), ['xyzあいう'])
 
+  " The text before the reading: the lines of the paragraph before it too.
+  %delete _
+  call setline(1, ['前の段落', '', '  駅の改札を出て、', 'ホームに'])
+  call feedkeys("Go\<C-j>woBunmyaku \<C-j>\<Esc>", 'xt')
+  call s:check('context lines', getline(5), 'を[駅の改札を出て、ホームにを]')
+
   " A key of no candidate on the page: the list stays.
   %delete _
   call feedkeys("i\<C-j>Kanji     d\<Cmd>let s:popup = s:popup_lines()\<CR>\<C-g>\<C-g>\<Esc>", 'xt')

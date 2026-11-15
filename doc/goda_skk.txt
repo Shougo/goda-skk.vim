@@ -472,7 +472,7 @@ karukan.New({params})                                   *goda-skk-karukan*
 		Candidates	the number of candidates (default 5)
 		ContextLength	characters of the text before the reading
 				sent with it (new(0) for none; default
-				10 for a server on the local machine,
+				40 for a server on the local machine,
 				none for another one)
 		BeamSearch	"" (the server's default) or "d1_greedy"
 				(faster)
@@ -534,8 +534,10 @@ A dictionary is any Go value with the methods of engine.Dictionary:
 <
                                                             *goda-skk-context*
 A dictionary that also has this method is an engine.ContextDictionary: it
-is called instead of Lookup, with the text of the line before the reading
-(none in a terminal job). >go
+is called instead of Lookup, with the text before the reading: the line
+before it and, in Insert mode, up to 3 lines before that in the paragraph
+(not after an empty line), joined as one (Japanese lines as they are,
+others with a space); none in a terminal job. >go
 	LookupContext(ctx context.Context, typ engine.HenkanType,
 	word, before string) ([]string, error)
 <

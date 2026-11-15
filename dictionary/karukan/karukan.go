@@ -55,10 +55,11 @@ type Params struct {
 	// default, the full beam search) or "d1_greedy" (faster).
 	BeamSearch string
 	// ContextLength is how many characters of the text before the reading
-	// go to the server with it (new(0) for none). The default is 10, as
-	// karukan's input method, for a server on the local machine, and none
-	// for another one: the text may be anything in the buffer. Set it to
-	// send the text to another machine.
+	// go to the server with it (new(0) for none). The default is 40 for a
+	// server on the local machine (the model is as fast with it, and a
+	// little better than with 10, karukan's input method's), and none for
+	// another one: the text may be anything in the buffer. Set it to send
+	// the text to another machine.
 	ContextLength *int
 	// Timeout bounds a request (default 1 second).
 	Timeout time.Duration
@@ -86,7 +87,7 @@ func New(p Params) *Dictionary {
 	if p.ContextLength == nil || *p.ContextLength < 0 {
 		n := 0
 		if isLocal(p.URL) {
-			n = 10
+			n = 40
 		}
 		p.ContextLength = &n
 	}

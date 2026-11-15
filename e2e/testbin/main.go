@@ -3,6 +3,7 @@
 package main
 
 import (
+	"context"
 	"os"
 
 	"github.com/Shougo/goda-skk.vim/engine"
@@ -10,7 +11,10 @@ import (
 
 func main() {
 	engine.Main(engine.Config{
-		Dictionaries:   []engine.Dictionary{engine.NewJisyo(os.Getenv("GODA_SKK_JISYO"), "utf-8")},
+		Dictionaries: []engine.Dictionary{
+			engine.NewJisyo(os.Getenv("GODA_SKK_JISYO"), "utf-8"),
+			contextDict{},
+		},
 		UserDictionary: os.Getenv("GODA_SKK_USER_JISYO"),
 		KanaTable: engine.RomTable.With(
 			engine.Rule{From: "jj", Func: "escape"},
@@ -20,4 +24,22 @@ func main() {
 			"input": {"<C-z>": "kakuteiUndo"},
 		},
 	})
+}
+
+// contextDict converts "ぶんみゃく" to the text before it, in brackets.
+type contextDict struct{}
+
+func (contextDict) Lookup(context.Context, engine.HenkanType, string) ([]string, error) {
+	return nil, nil
+}
+
+func (contextDict) LookupContext(_ context.Context, typ engine.HenkanType, word, before string) ([]string, error) {
+	if typ != engine.OkuriNasi || word != "ぶんみゃく" {
+		return nil, nil
+	}
+	return []string{"[" + before + "]"}, nil
+}
+
+func (contextDict) Complete(context.Context, string) ([]engine.Entry, error) {
+	return nil, nil
 }

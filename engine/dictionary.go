@@ -60,6 +60,17 @@ func (l *library) all() []Dictionary {
 	return append(ds, l.dicts...)
 }
 
+// hasContext reports whether a dictionary is told the text before the
+// reading.
+func (l *library) hasContext() bool {
+	for _, d := range l.all() {
+		if _, ok := d.(ContextDictionary); ok {
+			return true
+		}
+	}
+	return false
+}
+
 // lookup returns the candidates of word from every dictionary, each once,
 // with readings of numbers converted (see numberWord). before is the text
 // before the reading, for a ContextDictionary ("" when unknown).

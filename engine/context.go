@@ -3,6 +3,7 @@ package engine
 import (
 	"context"
 	"strings"
+	"unicode/utf8"
 
 	"github.com/Shougo/goda.vim/sdk"
 )
@@ -116,14 +117,52 @@ func (c *Context) kakuteiWithUndoPoint(s string) {
 
 func (c *Context) text() string { return c.state.text(c.cfg) }
 
+// contextLines is how many lines before the cursor's go into the text before
+// the reading, those of the paragraph only.
+const contextLines = 3
+
 // before is the text before the pre-edit: the line before the cursor when
 // the keys came, without the pre-edit then, and what was confirmed since.
+// In a buffer it goes on the lines before it in the paragraph, when a
+// dictionary is told the text (ContextDictionary).
 func (c *Context) before() string {
 	if c.vimMode == "t" {
 		return "" // what the job shows is not what is typed
 	}
-	return strings.TrimSuffix(c.prevInput, c.pre.current) +
+	b := strings.TrimSuffix(c.prevInput, c.pre.current) +
 		strings.ReplaceAll(c.pre.kakutei.String(), "\x07u", "")
+	if c.vimMode != "i" || c.host == nil || c.lnum <= 1 || !c.lib.hasContext() {
+		return b
+	}
+	v, err := c.host.Call(c.ctx, "getbufline", c.bufnr, max(1, c.lnum-contextLines), c.lnum-1)
+	lines, _ := v.([]any)
+	if err != nil || len(lines) == 0 {
+		return b
+	}
+	text := strings.TrimLeft(b, " \t")
+	for i := len(lines) - 1; i >= 0; i-- {
+		l, _ := lines[i].(string)
+		l = strings.TrimSpace(l)
+		if l == "" {
+			break // the paragraph starts after it
+		}
+		text = joinLines(l, text)
+	}
+	return text
+}
+
+// joinLines joins two lines of a paragraph: Japanese ones as they are, as
+// 'formatoptions' "M" does, others with a space.
+func joinLines(a, b string) string {
+	if a == "" || b == "" {
+		return a + b
+	}
+	last, _ := utf8.DecodeLastRuneInString(a)
+	first, _ := utf8.DecodeRuneInString(b)
+	if last >= utf8.RuneSelf && first >= utf8.RuneSelf {
+		return a + b
+	}
+	return a + " " + b
 }
 
 // keyChar is the character a key notation types.
