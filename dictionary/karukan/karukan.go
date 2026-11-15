@@ -9,7 +9,10 @@
 //	},
 //
 // It converts readings without okurigana only, as one phrase, and does not
-// complete. Its candidates come after those of the dictionaries before it.
+// complete. It is an engine.ContextDictionary: the end of the text before
+// the reading (ContextLength) goes to the server with it, as the model
+// converts better knowing it. The model runs on the local machine; with a
+// URL of another machine, the text goes there. Its candidates come after those of the dictionaries before it.
 // A request that is not answered in time (Timeout) gives nothing, a server
 // still loading its models gives nothing, and a server that cannot be
 // reached is tried again every few seconds only: typing does not wait for
@@ -48,6 +51,10 @@ type Params struct {
 	// BeamSearch is the beam search of the server: "" (the server's
 	// default, the full beam search) or "d1_greedy" (faster).
 	BeamSearch string
+	// ContextLength is how many characters of the text before the reading
+	// go to the server with it (default 10, as karukan's input method;
+	// new(0) for none).
+	ContextLength *int
 	// Timeout bounds a request (default 1 second).
 	Timeout time.Duration
 	// Client makes the requests (default http.DefaultClient).
@@ -71,6 +78,9 @@ func New(p Params) *Dictionary {
 	if p.Candidates <= 0 {
 		p.Candidates = 5
 	}
+	if p.ContextLength == nil || *p.ContextLength < 0 {
+		p.ContextLength = new(10)
+	}
 	if p.Timeout <= 0 {
 		p.Timeout = time.Second
 	}
@@ -82,6 +92,7 @@ func New(p Params) *Dictionary {
 
 type request struct {
 	Hiragana      string `json:"hiragana"`
+	Context       string `json:"context,omitempty"`
 	NumCandidates int    `json:"num_candidates"`
 	Model         string `json:"model,omitempty"`
 	BeamSearch    string `json:"beam_search_type,omitempty"`
@@ -93,6 +104,12 @@ type response struct {
 
 // Lookup asks for the candidates of word, as one phrase.
 func (d *Dictionary) Lookup(ctx context.Context, typ engine.HenkanType, word string) ([]string, error) {
+	return d.LookupContext(ctx, typ, word, "")
+}
+
+// LookupContext asks for the candidates of word, as one phrase, after
+// before.
+func (d *Dictionary) LookupContext(ctx context.Context, typ engine.HenkanType, word, before string) ([]string, error) {
 	// "#" is the pattern of the readings with digits: the model converts
 	// the digits as typed.
 	if typ != engine.OkuriNasi || word == "" || strings.Contains(word, "#") {
@@ -103,6 +120,7 @@ func (d *Dictionary) Lookup(ctx context.Context, typ engine.HenkanType, word str
 	}
 	body, err := json.Marshal(request{
 		Hiragana:      word,
+		Context:       tail(before, *d.p.ContextLength),
 		NumCandidates: d.p.Candidates,
 		Model:         d.p.Model,
 		BeamSearch:    d.p.BeamSearch,
@@ -159,6 +177,15 @@ func (d *Dictionary) Complete(context.Context, string) ([]engine.Entry, error) {
 	return nil, nil
 }
 
+// tail is the last n characters of s.
+func tail(s string, n int) string {
+	r := []rune(s)
+	if len(r) <= n {
+		return s
+	}
+	return string(r[len(r)-n:])
+}
+
 // resting reports whether the server could not be reached a moment ago.
 func (d *Dictionary) resting() bool {
 	d.mu.Lock()
@@ -172,4 +199,4 @@ func (d *Dictionary) fail() {
 	d.failedAt = time.Now()
 }
 
-var _ engine.Dictionary = (*Dictionary)(nil)
+var _ engine.ContextDictionary = (*Dictionary)(nil)

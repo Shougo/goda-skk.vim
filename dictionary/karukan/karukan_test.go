@@ -154,3 +154,26 @@ func TestUnreachable(t *testing.T) {
 		t.Errorf("retry: no error")
 	}
 }
+
+func TestContext(t *testing.T) {
+	var got []string
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		var req request
+		json.NewDecoder(r.Body).Decode(&req)
+		got = append(got, req.Context)
+		w.Write([]byte(`{"candidates":["汽車"]}`))
+	}))
+	defer srv.Close()
+	ctx := context.Background()
+	before := "あの日の朝、駅のホームに"
+	for _, n := range []*int{nil, new(3), new(0)} {
+		d := New(Params{URL: srv.URL, ContextLength: n})
+		if cs, err := d.LookupContext(ctx, engine.OkuriNasi, "きしゃ", before); err != nil || !slices.Equal(cs, []string{"汽車"}) {
+			t.Errorf("lookup: %q %v", cs, err)
+		}
+	}
+	New(Params{URL: srv.URL}).Lookup(ctx, engine.OkuriNasi, "きしゃ")
+	if want := []string{"日の朝、駅のホームに", "ームに", "", ""}; !slices.Equal(got, want) {
+		t.Errorf("context: %q, want %q", got, want)
+	}
+}

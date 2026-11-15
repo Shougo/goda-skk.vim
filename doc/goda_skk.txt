@@ -451,7 +451,8 @@ google.New({params})                                     *goda-skk-google*
 		package github.com/Shougo/goda-skk.vim/dictionary/google; as
 		skkeleton's source google_japanese_input.  It converts
 		readings without okurigana as one phrase, and does not
-		complete.  {params} (google.Params):
+		complete.  It is not told the text before the reading
+		(|goda-skk-context|).  {params} (google.Params):
 		Timeout		for a request (default 500 milliseconds)
 		URL		the API (default google.DefaultURL)
 		A request not answered in time gives nothing.
@@ -469,12 +470,18 @@ karukan.New({params})                                   *goda-skk-karukan*
 				of karukan's config.toml (default: the
 				server's default model)
 		Candidates	the number of candidates (default 5)
+		ContextLength	characters of the text before the reading
+				sent with it (default 10; new(0) for none)
 		BeamSearch	"" (the server's default) or "d1_greedy"
 				(faster)
 		Timeout		for a request (default time.Second)
 		A request not answered in time gives nothing, as does a
 		server still loading its models, and a server that cannot
 		be reached is tried again every few seconds only.
+		The end of the text before the reading goes with it
+		(|goda-skk-context|): the model converts better knowing it.
+		The model runs on the local machine; with a URL of another
+		machine, the text goes there too.
 		karukan-server is built from the karukan repository: >sh
 
 	cargo build --release -p karukan-cli --bin karukan-server
@@ -498,6 +505,19 @@ A dictionary is any Go value with the methods of engine.Dictionary:
 	([]string, error)
 	Complete(ctx context.Context, prefix string) ([]engine.Entry, error)
 <
+                                                            *goda-skk-context*
+A dictionary that also has this method is an engine.ContextDictionary: it
+is called instead of Lookup, with the text of the line before the reading
+(none in a terminal job). >go
+	LookupContext(ctx context.Context, typ engine.HenkanType,
+	word, before string) ([]string, error)
+<
+The text may be anything in the buffer: a password, a secret.  Only
+|goda-skk-karukan|, which keeps it on the local machine, is one; the
+dictionaries that ask a server on the network (|goda-skk-google|,
+|goda-skk-skkserv|) are not told it.  Write a ContextDictionary that sends
+it out of the machine only knowing that.
+
 Readings with digits look up "#" in the dictionaries (the reading "1かい"
 finds "#かい /#1回/#3回/"), and #0-#3, #5, #8 and #9 convert the number.
 

@@ -27,6 +27,16 @@ type Entry struct {
 	Candidates []string
 }
 
+// ContextDictionary is a Dictionary that converts better knowing the text
+// before the reading (dictionary/karukan): LookupContext is called instead of
+// Lookup, with before, the text of the line before the reading (empty on the
+// command line of a terminal job). Only a dictionary that keeps the text on
+// the machine should be one: the text may be anything in the buffer.
+type ContextDictionary interface {
+	Dictionary
+	LookupContext(ctx context.Context, typ HenkanType, word, before string) ([]string, error)
+}
+
 // Initializer is a Dictionary that prepares itself (reads its file) when
 // the plugin starts, in the background.
 type Initializer interface {
@@ -51,8 +61,9 @@ func (l *library) all() []Dictionary {
 }
 
 // lookup returns the candidates of word from every dictionary, each once,
-// with readings of numbers converted (see numberWord).
-func (l *library) lookup(ctx context.Context, typ HenkanType, word string) []string {
+// with readings of numbers converted (see numberWord). before is the text
+// before the reading, for a ContextDictionary ("" when unknown).
+func (l *library) lookup(ctx context.Context, typ HenkanType, word, before string) []string {
 	if l.user != nil {
 		l.user.reload()
 	}
@@ -71,12 +82,18 @@ func (l *library) lookup(ctx context.Context, typ HenkanType, word string) []str
 	}
 	pattern := numberWord(word)
 	for _, d := range l.all() {
+		find := d.Lookup
+		if cd, ok := d.(ContextDictionary); ok {
+			find = func(ctx context.Context, typ HenkanType, word string) ([]string, error) {
+				return cd.LookupContext(ctx, typ, word, before)
+			}
+		}
 		if pattern != word {
 			// The entries of the digits as typed come first, then those of
 			// "#", converted.
-			cs, err := d.Lookup(ctx, typ, word)
+			cs, err := find(ctx, typ, word)
 			l.report(err)
-			ps, err := d.Lookup(ctx, typ, pattern)
+			ps, err := find(ctx, typ, pattern)
 			l.report(err)
 			for _, p := range ps {
 				cs = append(cs, convertNumber(p, word))
@@ -84,7 +101,7 @@ func (l *library) lookup(ctx context.Context, typ HenkanType, word string) []str
 			add(cs)
 			continue
 		}
-		cs, err := d.Lookup(ctx, typ, word)
+		cs, err := find(ctx, typ, word)
 		l.report(err)
 		add(cs)
 	}

@@ -116,6 +116,16 @@ func (c *Context) kakuteiWithUndoPoint(s string) {
 
 func (c *Context) text() string { return c.state.text(c.cfg) }
 
+// before is the text before the pre-edit: the line before the cursor when
+// the keys came, without the pre-edit then, and what was confirmed since.
+func (c *Context) before() string {
+	if c.vimMode == "t" {
+		return "" // what the job shows is not what is typed
+	}
+	return strings.TrimSuffix(c.prevInput, c.pre.current) +
+		strings.ReplaceAll(c.pre.kakutei.String(), "\x07u", "")
+}
+
 // keyChar is the character a key notation types.
 func keyChar(key string) string {
 	switch strings.ToLower(key) {

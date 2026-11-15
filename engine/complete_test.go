@@ -69,7 +69,7 @@ func TestCompleteDone(t *testing.T) {
 	if r, ok := s.p.Reading(); ok {
 		t.Errorf("reading after the completion: %+v", r)
 	}
-	if got := s.p.lib.lookup(ctx, OkuriNasi, "かんじ"); got[0] != "感じ" {
+	if got := s.p.lib.lookup(ctx, OkuriNasi, "かんじ", ""); got[0] != "感じ" {
 		t.Errorf("learned: %v", got)
 	}
 	// kakuteiUndo takes it back.
@@ -106,7 +106,7 @@ func TestCompleteDoneAfterKey(t *testing.T) {
 	if s.line != "感じです" {
 		t.Errorf("typing on: %q", s.line)
 	}
-	if got := s.p.lib.lookup(ctx, OkuriNasi, "かんじ"); got[0] != "感じ" {
+	if got := s.p.lib.lookup(ctx, OkuriNasi, "かんじ", ""); got[0] != "感じ" {
 		t.Errorf("learned: %v", got)
 	}
 	// Typing on with a new reading.

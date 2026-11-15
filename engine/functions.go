@@ -282,7 +282,7 @@ func henkanFirst(c *Context, key string) {
 			s.affix = affixSuffix
 		}
 	}
-	s.candidates = c.lib.lookup(c.ctx, s.mode.henkanType(), s.word)
+	s.candidates = c.lib.lookup(c.ctx, s.mode.henkanType(), s.word, c.before())
 	henkanForward(c, "")
 }
 
