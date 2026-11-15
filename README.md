@@ -72,6 +72,22 @@ If nothing happens, `:echo goda#log()` shows what the plugin said.
 
 Everything else is in `:help goda_skk` ([doc/goda_skk.txt](doc/goda_skk.txt)).
 
+## With goda-pm.vim
+
+With [goda-pm.vim](https://github.com/Shougo/goda-pm.vim), the build uses
+the plugins installed (`g:goda#workspace` of goda.vim): after an update,
+build again, with no `go get -u`. To build after every update:
+
+```toml
+[[plugins]]
+repo = 'Shougo/goda.vim'
+
+[[plugins]]
+repo = 'Shougo/goda-skk.vim'
+depends = 'goda.vim'
+hook_post_update = 'call goda_skk#build()'
+```
+
 ## Tests
 
 ```sh

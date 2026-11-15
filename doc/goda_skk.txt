@@ -71,6 +71,16 @@ needed): >vim
 
 	:call goda_skk#build()
 <
+With goda-pm.vim, to build after every update of the plugins:
+>toml
+	[[plugins]]
+	repo = 'Shougo/goda.vim'
+
+	[[plugins]]
+	repo = 'Shougo/goda-skk.vim'
+	depends = 'goda.vim'
+	hook_post_update = 'call goda_skk#build()'
+<
 The binary goes to a cache directory (|g:goda_skk#binary|), and is started
 with the first key.
 
