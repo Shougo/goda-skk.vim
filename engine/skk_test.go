@@ -66,8 +66,10 @@ type sim struct {
 	cmdtype string
 	// getbufline: the arguments of the calls of getbufline().
 	getbufline []string
-	on         bool
-	res        Result
+	// bufnr is the number of the buffer (1 by default).
+	bufnr int
+	on    bool
+	res   Result
 	// confirm is the answer to confirm().
 	confirm int
 	// after is the text after the cursor.
@@ -159,7 +161,7 @@ func (s *sim) call(fn string, keys ...string) Result {
 	_, prev, lnum := s.cursorLine()
 	s.p.mu.Lock()
 	res, err := s.p.run(context.Background(), s, fn, keys, Status{
-		Mode: s.mode, PrevInput: prev, Bufnr: 1, Lnum: lnum, Selected: s.selected,
+		Mode: s.mode, PrevInput: prev, Bufnr: max(s.bufnr, 1), Lnum: lnum, Selected: s.selected,
 		PumVisible: s.pum, CanConfirm: s.pum, CanCancel: s.pum, Cmdtype: s.cmdtype,
 	}, s.on)
 	s.p.mu.Unlock()

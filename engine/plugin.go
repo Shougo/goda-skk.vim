@@ -25,8 +25,10 @@ type Plugin struct {
 	// mappedKeys are the keys Vim maps while enabled.
 	mappedKeys []string
 
-	mu       sync.Mutex
-	c        *Context
+	mu sync.Mutex
+	c  *Context
+	// recent is the text confirmed in the buffers.
+	recent   recentText
 	lastMode string
 	// outer are the contexts put aside while Vim asks for a word to
 	// register (registerWord): the keys of the prompt have their own.
@@ -93,6 +95,10 @@ func Main(cfg Config) {
 func (p *Plugin) newContext() *Context {
 	c := newContext(&p.cfg, p.lib)
 	c.keymaps = p.keymaps
+	if p.recent == nil && p.lib.hasContext() {
+		p.recent = recentText{}
+	}
+	c.recent = p.recent
 	return c
 }
 
@@ -272,7 +278,7 @@ func (p *Plugin) run(ctx context.Context, h sdk.Host, fn string, keys []string, 
 		return res, nil
 	case fn == "disable" && !(converting && len(keys) > 0):
 		disableFunc(c, "")
-		return p.result(c.pre.output(c.text())), nil
+		return p.result(c.output()), nil
 	case fn == "enable" || fn == "disable":
 		fn = "handleKey"
 	}
@@ -321,7 +327,7 @@ func (p *Plugin) run(ctx context.Context, h sdk.Host, fn string, keys []string, 
 		// (#14 of skkeleton.nvim).
 		showCandidates(c)
 	}
-	out := c.pre.output(c.text())
+	out := c.output()
 	if out == "" && before != c.mode {
 		// Something to feed, so that the mode shown is redrawn.
 		out = " \b"

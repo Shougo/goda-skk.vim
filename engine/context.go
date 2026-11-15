@@ -44,6 +44,9 @@ type Context struct {
 
 	keymaps map[string]keymap
 
+	// recent is the text confirmed in the buffers (shared by the contexts
+	// of the plugin).
+	recent    recentText
 	vimMode   string // "i", "c" or "t"
 	cmdtype   string // getcmdtype() on the command line
 	prevInput string // the text before the cursor
@@ -117,20 +120,41 @@ func (c *Context) kakuteiWithUndoPoint(s string) {
 
 func (c *Context) text() string { return c.state.text(c.cfg) }
 
+// output is the keys to feed for the pre-edit now; the text confirmed in a
+// buffer is remembered (recentText), not that of the command line.
+func (c *Context) output() string {
+	if c.vimMode != "c" {
+		c.recent.add(c.bufnr, c.pre.kakutei.String())
+	}
+	return c.pre.output(c.text())
+}
+
 // contextLines is how many lines before the cursor's go into the text before
 // the reading, those of the paragraph only.
 const contextLines = 3
 
 // before is the text before the pre-edit: the line before the cursor when
 // the keys came, without the pre-edit then, and what was confirmed since.
+// In a terminal job, it is the text confirmed there before (recentText); on
+// the command line, after the text confirmed in the buffer.
 // In a buffer it goes on the lines before it in the paragraph, when a
 // dictionary is told the text (ContextDictionary).
 func (c *Context) before() string {
 	if c.vimMode == "t" {
-		return "" // what the job shows is not what is typed
+		// What the job shows is not what is typed: what was confirmed in
+		// the buffer before.
+		var t recentText
+		if c.recent != nil {
+			t = recentText{c.bufnr: c.recent[c.bufnr]}
+			t.add(c.bufnr, c.pre.kakutei.String())
+		}
+		return t[c.bufnr]
 	}
-	b := strings.TrimSuffix(c.prevInput, c.pre.current) +
-		strings.ReplaceAll(c.pre.kakutei.String(), "\x07u", "")
+	b := strings.TrimSuffix(c.prevInput, c.pre.current) + cleanKakutei(c.pre.kakutei.String())
+	if c.vimMode == "c" {
+		// The command is about the buffer: what was written in it.
+		return joinLines(c.recent[c.bufnr], strings.TrimLeft(b, " \t"))
+	}
 	if c.vimMode != "i" || c.host == nil || c.lnum <= 1 || !c.lib.hasContext() {
 		return b
 	}

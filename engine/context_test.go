@@ -3,6 +3,7 @@ package engine
 import (
 	"context"
 	"slices"
+	"strings"
 	"testing"
 )
 
@@ -100,5 +101,69 @@ func TestContextLinesNotAsked(t *testing.T) {
 	c.typ("Kisha ")
 	if len(s.getbufline) != 0 || len(c.getbufline) != 0 || !slices.Equal(got, []string{"きしゃ|"}) {
 		t.Errorf("getbufline: %q %q, before %q", s.getbufline, c.getbufline, got)
+	}
+}
+
+func TestContextTerminalText(t *testing.T) {
+	var got []string
+	d := ctxDict{memDict{nasi: map[string][]string{"えき": {"駅"}, "きしゃ": {"汽車"}}}, &got}
+	s := newSim(t, Config{Dictionaries: []Dictionary{d}})
+	s.mode = "t"
+	// What was confirmed in the buffer before, keys of the same call too.
+	s.typ("Eki <c-j>no")
+	s.call("handleKey", "K", "i", "s", "h", "a", "<space>")
+	s.typ("<c-j>")
+	// A backspace takes a character back; a newline is dropped.
+	s.typ("<bs><cr>Kisha <c-j>")
+	// Another buffer has its own; insert mode has its line.
+	s.bufnr = 2
+	s.typ("Kisha <c-j>")
+	s.mode, s.bufnr, s.line = "i", 1, "x"
+	s.typ("Kisha <c-j>")
+	want := []string{"えき|", "きしゃ|駅の", "きしゃ|駅の汽", "きしゃ|", "きしゃ|x"}
+	if !slices.Equal(got, want) {
+		t.Errorf("before:\n%q\nwant:\n%q", got, want)
+	}
+}
+
+func TestRecentText(t *testing.T) {
+	tt := recentText{}
+	tt.add(1, strings.Repeat("あ", recentLength)+"い\x07u\b\bう\r\n")
+	if want := strings.Repeat("あ", recentLength-1) + "う"; tt[1] != want {
+		t.Errorf("text: %q", tt[1])
+	}
+	for i := range recentBuffers {
+		tt.add(i+2, "x")
+	}
+	if len(tt) != 1 || tt[recentBuffers+1] != "x" {
+		t.Errorf("buffers: %v", len(tt))
+	}
+	// Without a dictionary told the text, nothing is kept.
+	s := newSim(t, Config{Dictionaries: []Dictionary{testDict}})
+	s.mode = "t"
+	s.typ("Kanji <c-j>")
+	if s.p.recent != nil {
+		t.Errorf("kept: %v", s.p.recent)
+	}
+}
+
+func TestContextCommandLine(t *testing.T) {
+	var got []string
+	d := ctxDict{memDict{nasi: map[string][]string{"えき": {"駅"}, "きしゃ": {"汽車"}}}, &got}
+	s := newSim(t, Config{Dictionaries: []Dictionary{d}})
+	s.typ("Eki <c-j>no<esc>")
+	// On the command line: the text written in the buffer, then the
+	// command.
+	s.mode, s.line = "c", "s/"
+	s.typ("Kisha <c-j>")
+	// What the command line confirmed is not the buffer's.
+	s.line = ""
+	s.typ("Kisha <c-j>")
+	// Another buffer has its own.
+	s.bufnr, s.line = 2, ""
+	s.typ("Kisha <c-j>")
+	want := []string{"えき|", "きしゃ|駅の s/", "きしゃ|駅の", "きしゃ|"}
+	if !slices.Equal(got, want) {
+		t.Errorf("before:\n%q\nwant:\n%q", got, want)
 	}
 }

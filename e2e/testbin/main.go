@@ -26,7 +26,8 @@ func main() {
 	})
 }
 
-// contextDict converts "ぶんみゃく" to the text before it, in brackets.
+// contextDict converts "ぶんみゃく", "もじ" and "けんさく" to the text before
+// them, in brackets (each test its own: a conversion confirmed is learned).
 type contextDict struct{}
 
 func (contextDict) Lookup(context.Context, engine.HenkanType, string) ([]string, error) {
@@ -34,7 +35,7 @@ func (contextDict) Lookup(context.Context, engine.HenkanType, string) ([]string,
 }
 
 func (contextDict) LookupContext(_ context.Context, typ engine.HenkanType, word, before string) ([]string, error) {
-	if typ != engine.OkuriNasi || word != "ぶんみゃく" {
+	if typ != engine.OkuriNasi || (word != "ぶんみゃく" && word != "もじ" && word != "けんさく") {
 		return nil, nil
 	}
 	return []string{"[" + before + "]"}, nil

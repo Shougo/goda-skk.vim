@@ -537,7 +537,13 @@ A dictionary that also has this method is an engine.ContextDictionary: it
 is called instead of Lookup, with the text before the reading: the line
 before it and, in Insert mode, up to 3 lines before that in the paragraph
 (not after an empty line), joined as one (Japanese lines as they are,
-others with a space); none in a terminal job. >go
+others with a space).  Where the text is not what was written, it is the
+text goda-skk.vim confirmed in the buffer before, in Insert mode or in the
+job: in a terminal job, which shows a prompt and the output of commands,
+and on the command line, before the command (a search or a substitution is
+about the buffer).  The last 200 characters are kept, in memory only and
+only while a dictionary is told the text; text deleted from the buffer
+stays in them. >go
 	LookupContext(ctx context.Context, typ engine.HenkanType,
 	word, before string) ([]string, error)
 <

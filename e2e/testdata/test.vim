@@ -56,6 +56,9 @@ function! s:run() abort
   call setline(1, ['前の段落', '', '  駅の改札を出て、', 'ホームに'])
   call feedkeys("Go\<C-j>woBunmyaku \<C-j>\<Esc>", 'xt')
   call s:check('context lines', getline(5), 'を[駅の改札を出て、ホームにを]')
+  " On the command line: what was written in the buffer before.
+  call feedkeys("A\<C-j>aiu\<Esc>:let g:x = input('')\<CR>\<C-j>Kensaku \<C-j>\<CR>", 'xt')
+  call s:check('context command line', g:x =~# 'あいう\]$', v:true)
 
   " A key of no candidate on the page: the list stays.
   %delete _
@@ -342,6 +345,20 @@ function! s:terminal() abort
   call feedkeys("i\<CR>\<Cmd>call s:wait_line(" . buf . ", '▽さけ^H^H^Hさけ$')\<CR>\<C-\>\<C-n>", 'xt')
   call feedkeys("i\<Cmd>call s:wait_line(" . buf . ", '▽さけ^H^H^Hさけ$')\<CR>\<C-\>\<C-n>", 'xt')
   call s:check('terminal left line', match(s:tl, '▽さけ^H^H^Hさけ$') >= 0, v:true)
+  bwipeout!
+
+  " The text before the reading: what was confirmed in the job before.
+  new
+  call term_start(['cat'], #{curwin: v:true})
+  let buf = bufnr('%')
+  call feedkeys("\<C-j>eki\<CR>\<C-j>woMoji \<C-j>\<CR>\<C-\>\<C-n>", 'xt')
+  for _ in range(250)
+    if match(s:term_lines(buf), '\[えきを\]') >= 0
+      break
+    endif
+    call term_wait(buf, 20)
+  endfor
+  call s:check('terminal context', match(s:term_lines(buf), '\[えきを\]') >= 0, v:true)
   bwipeout!
   tunmap <C-j>
 endfunction
