@@ -486,13 +486,36 @@ karukan.New({params})                                   *goda-skk-karukan*
 		a URL of the loopback address (127.0.0.1, [::1]) or
 		localhost.  For a server on another machine, set
 		ContextLength to send it there.
-		karukan-server is built from the karukan repository: >sh
+		karukan-server is built from the karukan repository (Rust
+		1.95 or later, cmake, a C/C++ compiler, and clang): >sh
 
 	cargo build --release -p karukan-cli --bin karukan-server
 	./target/release/karukan-server
 <
 		It downloads the models from Hugging Face when it starts for
-		the first time.
+		the first time, and loads them in a few seconds when it
+		starts; the dictionaries before it work meanwhile.
+		To start it when you log in, on Linux with systemd, as a
+		user service: >sh
+
+	install -Dm755 target/release/karukan-server \
+	    ~/.local/bin/karukan-server
+	mkdir -p ~/.config/systemd/user
+	cat > ~/.config/systemd/user/karukan-server.service <<'EOF'
+	[Unit]
+	Description=karukan-server (neural kana-kanji conversion)
+
+	[Service]
+	ExecStart=%h/.local/bin/karukan-server
+	Restart=on-failure
+
+	[Install]
+	WantedBy=default.target
+	EOF
+	systemctl --user daemon-reload
+	systemctl --user enable --now karukan-server
+<
+		Its log: `journalctl --user -u karukan-server`.
 
 For example, the dictionary file first, then the server, then Google: >go
 
