@@ -449,6 +449,33 @@ google.New({params})                                     *goda-skk-google*
 		URL		the API (default google.DefaultURL)
 		A request not answered in time gives nothing.
 
+karukan.New({params})                                   *goda-skk-karukan*
+		Neural kana-kanji conversion by karukan-server of karukan
+		(https://github.com/togatoga/karukan), a small language
+		model run by llama.cpp on the local machine; package
+		github.com/Shougo/goda-skk.vim/dictionary/karukan.  It
+		converts readings without okurigana as one phrase, and does
+		not complete.  {params} (karukan.Params):
+		URL		karukan-server (default karukan.DefaultURL,
+				"http://127.0.0.1:3000")
+		Model		the key of the model in the [models] table
+				of karukan's config.toml (default: the
+				server's default model)
+		Candidates	the number of candidates (default 5)
+		BeamSearch	"" (the server's default) or "d1_greedy"
+				(faster)
+		Timeout		for a request (default time.Second)
+		A request not answered in time gives nothing, as does a
+		server still loading its models, and a server that cannot
+		be reached is tried again every few seconds only.
+		karukan-server is built from the karukan repository: >sh
+
+	cargo build --release -p karukan-cli --bin karukan-server
+	./target/release/karukan-server
+<
+		It downloads the models from Hugging Face when it starts for
+		the first time.
+
 For example, the dictionary file first, then the server, then Google: >go
 
 	Dictionaries: []engine.Dictionary{

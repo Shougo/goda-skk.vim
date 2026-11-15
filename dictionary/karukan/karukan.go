@@ -1,0 +1,175 @@
+// Package karukan is a dictionary of goda-skk.vim that asks karukan-server
+// (https://github.com/togatoga/karukan), a neural kana-kanji conversion
+// engine running a small language model with llama.cpp on the local
+// machine:
+//
+//	Dictionaries: []engine.Dictionary{
+//		engine.NewJisyo("~/.skk/SKK-JISYO.L", ""),
+//		karukan.New(karukan.Params{}),
+//	},
+//
+// It converts readings without okurigana only, as one phrase, and does not
+// complete. Its candidates come after those of the dictionaries before it.
+// A request that is not answered in time (Timeout) gives nothing, a server
+// still loading its models gives nothing, and a server that cannot be
+// reached is tried again every few seconds only: typing does not wait for
+// it.
+package karukan
+
+import (
+	"bytes"
+	"context"
+	"encoding/json"
+	"fmt"
+	"io"
+	"net/http"
+	"strings"
+	"sync"
+	"time"
+
+	"github.com/Shougo/goda-skk.vim/engine"
+)
+
+// DefaultURL is where karukan-server listens by default.
+const DefaultURL = "http://127.0.0.1:3000"
+
+// retryAfter is how long a server that could not be reached is left alone.
+const retryAfter = 5 * time.Second
+
+// Params are the settings of the dictionary.
+type Params struct {
+	// URL of karukan-server (default DefaultURL).
+	URL string
+	// Model is the key of the model in the [models] table of karukan's
+	// config.toml (default: the server's default model).
+	Model string
+	// Candidates is the number of candidates asked for (default 5).
+	Candidates int
+	// BeamSearch is the beam search of the server: "" (the server's
+	// default, the full beam search) or "d1_greedy" (faster).
+	BeamSearch string
+	// Timeout bounds a request (default 1 second).
+	Timeout time.Duration
+	// Client makes the requests (default http.DefaultClient).
+	Client *http.Client
+}
+
+// Dictionary is karukan-server as a dictionary.
+type Dictionary struct {
+	p Params
+
+	mu       sync.Mutex
+	failedAt time.Time // when the server could not be reached
+}
+
+// New returns the dictionary.
+func New(p Params) *Dictionary {
+	if p.URL == "" {
+		p.URL = DefaultURL
+	}
+	p.URL = strings.TrimSuffix(p.URL, "/")
+	if p.Candidates <= 0 {
+		p.Candidates = 5
+	}
+	if p.Timeout <= 0 {
+		p.Timeout = time.Second
+	}
+	if p.Client == nil {
+		p.Client = http.DefaultClient
+	}
+	return &Dictionary{p: p}
+}
+
+type request struct {
+	Hiragana      string `json:"hiragana"`
+	NumCandidates int    `json:"num_candidates"`
+	Model         string `json:"model,omitempty"`
+	BeamSearch    string `json:"beam_search_type,omitempty"`
+}
+
+type response struct {
+	Candidates []string `json:"candidates"`
+}
+
+// Lookup asks for the candidates of word, as one phrase.
+func (d *Dictionary) Lookup(ctx context.Context, typ engine.HenkanType, word string) ([]string, error) {
+	// "#" is the pattern of the readings with digits: the model converts
+	// the digits as typed.
+	if typ != engine.OkuriNasi || word == "" || strings.Contains(word, "#") {
+		return nil, nil
+	}
+	if d.resting() {
+		return nil, nil
+	}
+	body, err := json.Marshal(request{
+		Hiragana:      word,
+		NumCandidates: d.p.Candidates,
+		Model:         d.p.Model,
+		BeamSearch:    d.p.BeamSearch,
+	})
+	if err != nil {
+		return nil, err
+	}
+	ctx, cancel := context.WithTimeout(ctx, d.p.Timeout)
+	defer cancel()
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, d.p.URL+"/api/kanji/convert", bytes.NewReader(body))
+	if err != nil {
+		return nil, err
+	}
+	req.Header.Set("Content-Type", "application/json")
+	resp, err := d.p.Client.Do(req)
+	if err != nil {
+		if ctx.Err() != nil {
+			return nil, nil // too slow: nothing this time
+		}
+		d.fail()
+		return nil, fmt.Errorf("karukan %s: %w", d.p.URL, err)
+	}
+	defer resp.Body.Close()
+	b, err := io.ReadAll(io.LimitReader(resp.Body, 1<<20))
+	if err != nil {
+		if ctx.Err() != nil {
+			return nil, nil
+		}
+		return nil, fmt.Errorf("karukan %s: %w", d.p.URL, err)
+	}
+	switch resp.StatusCode {
+	case http.StatusOK:
+	case http.StatusServiceUnavailable:
+		return nil, nil // the models are still loading
+	default:
+		return nil, fmt.Errorf("karukan %s: %s: %s", d.p.URL, resp.Status, bytes.TrimSpace(b))
+	}
+	var r response
+	if err := json.Unmarshal(b, &r); err != nil {
+		return nil, fmt.Errorf("karukan %s: %w", d.p.URL, err)
+	}
+	var cs []string
+	for _, c := range r.Candidates {
+		// The reading itself is no conversion.
+		if c != "" && c != word {
+			cs = append(cs, c)
+		}
+	}
+	return cs, nil
+}
+
+// Complete gives nothing: the server does not complete.
+func (d *Dictionary) Complete(context.Context, string) ([]engine.Entry, error) {
+	return nil, nil
+}
+
+// resting reports whether the server could not be reached a moment ago.
+func (d *Dictionary) resting() bool {
+	d.mu.Lock()
+	defer d.mu.Unlock()
+	return !d.failedAt.IsZero() && time.Since(d.failedAt) < retryAfter
+}
+
+func (d *Dictionary) fail() {
+	d.mu.Lock()
+	defer d.mu.Unlock()
+	d.failedAt = time.Now()
+}
+
+var _ engine.Dictionary = (*Dictionary)(nil)

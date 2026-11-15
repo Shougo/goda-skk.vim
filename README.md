@@ -13,7 +13,9 @@ and terminal jobs work; the highlight of the pre-edit and the state popup
 [goda-cmp.vim](https://github.com/Shougo/goda-cmp.vim) completes readings
 (the sources `cmp/source/skk` and `cmp/source/skkokuri`, the ddc.vim
 sources of skkeleton). Besides dictionary files, an SKK server
-(`dictionary/skkserv`) and Google Japanese Input (`dictionary/google`) can
+(`dictionary/skkserv`), Google Japanese Input (`dictionary/google`) and
+the neural kana-kanji conversion of
+[karukan](https://github.com/togatoga/karukan) (`dictionary/karukan`) can
 be dictionaries.
 
 The author's configuration of goda-cmp.vim completes with them:
