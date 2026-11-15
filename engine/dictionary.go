@@ -163,6 +163,12 @@ func (l *library) learn(typ HenkanType, word, candidate string) {
 	if l.maxLearn > 0 && utf8.RuneCountInString(word) > l.maxLearn {
 		return
 	}
+	l.register(typ, word, candidate)
+}
+
+// register puts candidate first for word in the user dictionary, whatever
+// the length of word: a word registered is asked for.
+func (l *library) register(typ HenkanType, word, candidate string) {
 	if l.user != nil && candidate != "" {
 		l.user.Register(typ, word, normalizeCandidate(candidate))
 	}

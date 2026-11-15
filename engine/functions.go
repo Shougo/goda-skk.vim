@@ -412,6 +412,8 @@ func registerDone(c *Context, word string) {
 	}
 	c.state = r.state
 	c.state.candidates, c.state.index = []string{word}, 0
+	// Registered even past MaxLearnLength, which kakutei keeps to.
+	c.lib.register(c.state.mode.henkanType(), c.state.word, word)
 	kakutei(c)
 	// Taking it back would only choose the word just registered.
 	c.invalidateKakutei()

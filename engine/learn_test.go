@@ -29,3 +29,18 @@ func TestMaxLearnLength(t *testing.T) {
 		t.Errorf("negative: no error")
 	}
 }
+
+func TestMaxLearnLengthRegister(t *testing.T) {
+	// A word registered is asked for: it is learned whatever its length.
+	s := newSim(t, Config{MaxLearnLength: 3})
+	s.register = func(string) string { return "蜜柑缶詰" }
+	s.typ("Mikankandume ")
+	s.register = nil
+	if s.line != "蜜柑缶詰" {
+		t.Errorf("register: %q", s.line)
+	}
+	s.typ("Mikankandume ")
+	if s.line != "蜜柑缶詰▼蜜柑缶詰" {
+		t.Errorf("registered: %q", s.line)
+	}
+}

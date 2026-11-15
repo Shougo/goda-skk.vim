@@ -67,7 +67,7 @@ type Config struct {
 	// MaxLearnLength: a reading longer than this many characters is not
 	// learned in the user dictionary (0: no limit). The conversions of
 	// whole phrases (dictionary/karukan) would fill it with entries used
-	// once.
+	// once. A word registered is kept whatever its length.
 	MaxLearnLength int
 	// SetUndoPoint makes a confirmed conversion a step of undo (default
 	// true).

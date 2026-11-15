@@ -400,7 +400,8 @@ RegisterConvertResult	Learn conversions to katakana ("q" on a reading).
 MaxLearnLength		Readings longer than this many characters are not
 			learned in the user dictionary (0: no limit).  The
 			phrases converted by |goda-skk-karukan| would fill it
-			with entries used once: >go
+			with entries used once.  A word registered is kept
+			whatever its length: >go
 			MaxLearnLength: 10,
 <
 
