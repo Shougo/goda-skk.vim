@@ -567,7 +567,10 @@ being typed (▽):
 
 A completion accepted is learned, and kakuteiUndo takes it back.  The
 sources say where the reading starts (goda-cmp.vim's CompletePositioner), so
-the keywordPattern does not matter to them.
+the keywordPattern does not matter to them.  The completed word is the
+pre-edit, "▽" included: with MaxAutoCompleteLength, a long reading, which
+is converted as a phrase (|goda-skk-karukan|) rather than completed, does
+not complete automatically.
 
 They ask the input method directly, so it is in the binary of goda-cmp.vim:
 the configuration of goda-cmp.vim makes the plugin too (package engine),
@@ -598,15 +601,18 @@ goda-cmp.vim, the input method still works):
 		SourceOptions: map[string]cmp.SourceOption{
 			// Ordered already, and not starting with what is
 			// typed.
+			// Up to "▽" and 8 characters of the reading.
 			"skk": {
 				Mark: "skk",
 				Matchers: []string{},
 				Sorters: []string{},
+				MaxAutoCompleteLength: new(9),
 			},
 			"skkokuri": {
 				Mark: "skk",
 				Matchers: []string{},
 				Sorters: []string{},
+				MaxAutoCompleteLength: new(9),
 			},
 		},
 	})
