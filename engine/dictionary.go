@@ -6,6 +6,7 @@ import (
 	"slices"
 	"strconv"
 	"strings"
+	"unicode/utf8"
 )
 
 // Dictionary gives the candidates of a reading. A dictionary that cannot
@@ -37,6 +38,8 @@ type library struct {
 	user  *UserDictionary
 	dicts []Dictionary
 	logf  func(format string, args ...any)
+	// maxLearn: a longer reading is not learned (0: no limit).
+	maxLearn int
 }
 
 func (l *library) all() []Dictionary {
@@ -126,8 +129,12 @@ func (l *library) report(err error) {
 	}
 }
 
-// learn puts candidate first for word in the user dictionary.
+// learn puts candidate first for word in the user dictionary, unless word
+// is longer than maxLearn.
 func (l *library) learn(typ HenkanType, word, candidate string) {
+	if l.maxLearn > 0 && utf8.RuneCountInString(word) > l.maxLearn {
+		return
+	}
 	if l.user != nil && candidate != "" {
 		l.user.Register(typ, word, normalizeCandidate(candidate))
 	}

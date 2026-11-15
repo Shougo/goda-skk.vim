@@ -64,6 +64,11 @@ type Config struct {
 	// RegisterConvertResult learns a conversion to katakana in the user
 	// dictionary.
 	RegisterConvertResult bool
+	// MaxLearnLength: a reading longer than this many characters is not
+	// learned in the user dictionary (0: no limit). The conversions of
+	// whole phrases (dictionary/karukan) would fill it with entries used
+	// once.
+	MaxLearnLength int
 	// SetUndoPoint makes a confirmed conversion a step of undo (default
 	// true).
 	SetUndoPoint *bool
@@ -98,6 +103,9 @@ func (c Config) fill() (Config, error) {
 	}
 	if c.ShowCandidatesCount == nil || *c.ShowCandidatesCount < 0 {
 		c.ShowCandidatesCount = new(*Defaults.ShowCandidatesCount)
+	}
+	if c.MaxLearnLength < 0 {
+		return c, fmt.Errorf("MaxLearnLength must not be negative: %d", c.MaxLearnLength)
 	}
 	if c.SelectCandidateKeys == "" {
 		c.SelectCandidateKeys = Defaults.SelectCandidateKeys

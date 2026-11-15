@@ -397,6 +397,13 @@ KeepState		Leaving insert mode with <Esc> enables again in the
 
 RegisterConvertResult	Learn conversions to katakana ("q" on a reading).
 
+MaxLearnLength		Readings longer than this many characters are not
+			learned in the user dictionary (0: no limit).  The
+			phrases converted by |goda-skk-karukan| would fill it
+			with entries used once: >go
+			MaxLearnLength: 10,
+<
+
 SetUndoPoint		A conversion confirmed is a step of undo (true).
 
 The fields that default to true, the markers and ShowCandidatesCount are
