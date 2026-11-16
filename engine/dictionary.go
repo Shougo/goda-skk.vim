@@ -6,6 +6,7 @@ import (
 	"slices"
 	"strconv"
 	"strings"
+	"sync"
 	"unicode/utf8"
 )
 
@@ -43,6 +44,49 @@ type Initializer interface {
 	Init(ctx context.Context) error
 }
 
+// NoLearn returns d whose candidates are not learned in the user
+// dictionary when they are confirmed, unless a dictionary that is not
+// NoLearn gives them too: the phrases converted by dictionary/karukan would
+// fill it with entries used once.
+func NoLearn(d Dictionary) Dictionary {
+	o := wrap(d)
+	o.noLearn = true
+	return o
+}
+
+// Fallback returns d that is looked up only when the dictionaries before
+// it, the user dictionary included, give no candidates: dictionary/karukan
+// after the dictionary files, for the readings they do not have.
+func Fallback(d Dictionary) Dictionary {
+	o := wrap(d)
+	o.fallback = true
+	return o
+}
+
+// option is a dictionary with the options of NoLearn and Fallback.
+type option struct {
+	Dictionary
+	noLearn, fallback bool
+}
+
+// wrap returns d with its options, NoLearn(Fallback(d)) being one option.
+func wrap(d Dictionary) *option {
+	if o, ok := d.(*option); ok {
+		c := *o
+		return &c
+	}
+	return &option{Dictionary: d}
+}
+
+// unwrap returns the dictionary of d and its options: the dictionary of an
+// option is what is a ContextDictionary, an Initializer or an io.Closer.
+func unwrap(d Dictionary) (Dictionary, option) {
+	if o, ok := d.(*option); ok {
+		return o.Dictionary, *o
+	}
+	return d, option{}
+}
+
 // library looks the dictionaries up in order, merging their candidates.
 type library struct {
 	user  *UserDictionary
@@ -50,7 +94,21 @@ type library struct {
 	logf  func(format string, args ...any)
 	// maxLearn: a longer reading is not learned (0: no limit).
 	maxLearn int
+
+	mu sync.Mutex
+	// unlearned are the candidates that only NoLearn dictionaries gave,
+	// by reading.
+	unlearned map[learnKey]map[string]bool
 }
+
+type learnKey struct {
+	typ  HenkanType
+	word string
+}
+
+// maxUnlearned bounds the readings kept in library.unlearned: a candidate
+// is confirmed soon after it is looked up.
+const maxUnlearned = 256
 
 func (l *library) all() []Dictionary {
 	var ds []Dictionary
@@ -64,11 +122,44 @@ func (l *library) all() []Dictionary {
 // reading.
 func (l *library) hasContext() bool {
 	for _, d := range l.all() {
+		d, _ := unwrap(d)
 		if _, ok := d.(ContextDictionary); ok {
 			return true
 		}
 	}
 	return false
+}
+
+// remember records the candidates of word that are not learned: in place
+// of those recorded before (a lookup), or with them (a completion, which
+// sees part of the dictionaries).
+func (l *library) remember(typ HenkanType, word string, cands map[string]bool, replace bool) {
+	l.mu.Lock()
+	defer l.mu.Unlock()
+	k := learnKey{typ, word}
+	if len(cands) == 0 {
+		if replace {
+			delete(l.unlearned, k)
+		}
+		return
+	}
+	if l.unlearned == nil || len(l.unlearned) >= maxUnlearned {
+		l.unlearned = map[learnKey]map[string]bool{}
+	}
+	if old := l.unlearned[k]; !replace && old != nil {
+		for c := range cands {
+			old[c] = true
+		}
+		return
+	}
+	l.unlearned[k] = cands
+}
+
+// isUnlearned reports whether candidate of word is not learned.
+func (l *library) isUnlearned(typ HenkanType, word, candidate string) bool {
+	l.mu.Lock()
+	defer l.mu.Unlock()
+	return l.unlearned[learnKey{typ, word}][candidate]
 }
 
 // lookup returns the candidates of word from every dictionary, each once,
@@ -80,11 +171,16 @@ func (l *library) lookup(ctx context.Context, typ HenkanType, word, before strin
 	}
 	var out []string
 	seen := map[string]bool{}
-	add := func(cs []string) {
+	// learned: the candidates a dictionary that is not NoLearn gave.
+	learned := map[string]bool{}
+	add := func(cs []string, noLearn bool) {
 		for _, c := range cs {
 			// As the user dictionary writes it: the same candidate of
 			// another dictionary is the same.
 			c = normalizeCandidate(c)
+			if !noLearn {
+				learned[c] = true
+			}
 			if !seen[c] {
 				seen[c] = true
 				out = append(out, c)
@@ -93,6 +189,10 @@ func (l *library) lookup(ctx context.Context, typ HenkanType, word, before strin
 	}
 	pattern := numberWord(word)
 	for _, d := range l.all() {
+		d, opt := unwrap(d)
+		if opt.fallback && len(out) > 0 {
+			continue
+		}
 		find := d.Lookup
 		if cd, ok := d.(ContextDictionary); ok {
 			find = func(ctx context.Context, typ HenkanType, word string) ([]string, error) {
@@ -109,13 +209,23 @@ func (l *library) lookup(ctx context.Context, typ HenkanType, word, before strin
 			for _, p := range ps {
 				cs = append(cs, convertNumber(p, word))
 			}
-			add(cs)
+			add(cs, opt.noLearn)
 			continue
 		}
 		cs, err := find(ctx, typ, word)
 		l.report(err)
-		add(cs)
+		add(cs, opt.noLearn)
 	}
+	var unlearned map[string]bool
+	for _, c := range out {
+		if !learned[c] {
+			if unlearned == nil {
+				unlearned = map[string]bool{}
+			}
+			unlearned[c] = true
+		}
+	}
+	l.remember(typ, word, unlearned, true)
 	return out
 }
 
@@ -127,7 +237,14 @@ func (l *library) complete(ctx context.Context, prefixes []string) []Entry {
 	}
 	byWord := map[string]int{}
 	var out []Entry
+	// learned: the candidates, by reading, a dictionary that is not
+	// NoLearn gave.
+	learned := map[[2]string]bool{}
 	for _, d := range l.all() {
+		d, opt := unwrap(d)
+		if opt.fallback && len(out) > 0 {
+			continue
+		}
 		for _, p := range prefixes {
 			es, err := d.Complete(ctx, p)
 			l.report(err)
@@ -140,12 +257,27 @@ func (l *library) complete(ctx context.Context, prefixes []string) []Entry {
 				}
 				for _, c := range e.Candidates {
 					c = normalizeCandidate(c)
+					if !opt.noLearn {
+						learned[[2]string{e.Word, c}] = true
+					}
 					if !slices.Contains(out[i].Candidates, c) {
 						out[i].Candidates = append(out[i].Candidates, c)
 					}
 				}
 			}
 		}
+	}
+	for _, e := range out {
+		var unlearned map[string]bool
+		for _, c := range e.Candidates {
+			if !learned[[2]string{e.Word, c}] {
+				if unlearned == nil {
+					unlearned = map[string]bool{}
+				}
+				unlearned[c] = true
+			}
+		}
+		l.remember(OkuriNasi, e.Word, unlearned, false)
 	}
 	slices.SortStableFunc(out, func(a, b Entry) int { return strings.Compare(a.Word, b.Word) })
 	return out
@@ -158,9 +290,12 @@ func (l *library) report(err error) {
 }
 
 // learn puts candidate first for word in the user dictionary, unless word
-// is longer than maxLearn.
+// is longer than maxLearn or only NoLearn dictionaries gave candidate.
 func (l *library) learn(typ HenkanType, word, candidate string) {
 	if l.maxLearn > 0 && utf8.RuneCountInString(word) > l.maxLearn {
+		return
+	}
+	if l.isUnlearned(typ, word, normalizeCandidate(candidate)) {
 		return
 	}
 	l.register(typ, word, candidate)

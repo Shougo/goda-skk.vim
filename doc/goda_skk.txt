@@ -410,8 +410,9 @@ RegisterConvertResult	Learn conversions to katakana ("q" on a reading).
 MaxLearnLength		Readings longer than this many characters are not
 			learned in the user dictionary (0: no limit).  The
 			phrases converted by |goda-skk-karukan| would fill it
-			with entries used once.  A word registered is kept
-			whatever its length: >go
+			with entries used once (|goda-skk-nolearn| keeps them
+			out whatever their length).  A word registered is
+			kept whatever its length: >go
 			MaxLearnLength: 10,
 <
 
@@ -534,6 +535,32 @@ For example, the dictionary file first, then the server, then Google: >go
 		engine.NewJisyo("/usr/share/skk/SKK-JISYO.L", ""),
 		skkserv.New(skkserv.Params{Addr: "localhost:1178"}),
 		google.New(google.Params{}),
+	},
+<
+
+engine.NoLearn({dictionary})                            *goda-skk-nolearn*
+		{dictionary} whose candidates are not learned in the user
+		dictionary when they are confirmed, unless a dictionary
+		that is not NoLearn gives them too; a word registered is
+		learned.  Wrap |goda-skk-karukan| or |goda-skk-google|
+		with it: the phrases they convert would fill the user
+		dictionary with entries used once.
+
+engine.Fallback({dictionary})                          *goda-skk-fallback*
+		{dictionary} looked up only when the dictionaries before
+		it, the user dictionary included, give no candidates, and
+		asked for completions only when they complete nothing.
+		Placed after the dictionary files, |goda-skk-karukan| or
+		|goda-skk-google| is asked only for the readings they do
+		not have: a conversion of a reading they have does not
+		wait for the response of karukan or Google.
+
+They wrap any dictionary, in either order: >go
+
+	Dictionaries: []engine.Dictionary{
+		engine.NewJisyo("~/.skk/SKK-JISYO.L", ""),
+		engine.Fallback(engine.NoLearn(
+			karukan.New(karukan.Params{}))),
 	},
 <
 

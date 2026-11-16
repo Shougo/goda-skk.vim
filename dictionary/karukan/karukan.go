@@ -9,7 +9,9 @@
 //	},
 //
 // It converts readings without okurigana only, as one phrase, and does not
-// complete. Its candidates come after those of the dictionaries before it.
+// complete. Its candidates come after those of the dictionaries before it;
+// wrapped as engine.Fallback(engine.NoLearn(karukan.New(...))), it converts
+// only the readings they do not have, and its phrases are not learned.
 // It is an engine.ContextDictionary: the end of the text before the reading
 // (ContextLength) goes to the server with it, as the model converts better
 // knowing it; by default only to a server on the local machine (a URL of
