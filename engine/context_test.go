@@ -36,7 +36,7 @@ func TestContextDictionary(t *testing.T) {
 	s.typ("Oku")
 	s.typ("Ru")
 	s.typ("<c-j>")
-	s.p.lib.lookup(context.Background(), OkuriNasi, "1かい", "第")
+	s.p.lib.lookup(context.Background(), OkuriNasi, "1かい", func() string { return "第" })
 	want := []string{
 		"きしゃ|駅のホームに",
 		"きしゃ|駅のホームに汽車が ",
@@ -48,7 +48,7 @@ func TestContextDictionary(t *testing.T) {
 		t.Errorf("before:\n%q\nwant:\n%q", got, want)
 	}
 	// The other dictionaries are not told.
-	if cs := s.p.lib.lookup(context.Background(), OkuriNasi, "かんじ", "前"); cs[0] != "漢字" {
+	if cs := s.p.lib.lookup(context.Background(), OkuriNasi, "かんじ", func() string { return "前" }); cs[0] != "漢字" {
 		t.Errorf("lookup: %q", cs)
 	}
 }
@@ -165,5 +165,27 @@ func TestContextCommandLine(t *testing.T) {
 	want := []string{"えき|", "きしゃ|駅の s/", "きしゃ|駅の", "きしゃ|"}
 	if !slices.Equal(got, want) {
 		t.Errorf("before:\n%q\nwant:\n%q", got, want)
+	}
+}
+
+func TestContextOnlyWhenAsked(t *testing.T) {
+	var got []string
+	d := ctxDict{memDict{nasi: map[string][]string{"きしゃ": {"汽車"}}}, &got}
+	s := newSim(t, Config{Dictionaries: []Dictionary{testDict, Fallback(d)}})
+	s.line = "前の行\n"
+	// The dictionary file has it: the text before it is not asked for.
+	s.typ("Kanji <c-j>")
+	if len(s.getbufline) != 0 || len(got) != 0 {
+		t.Errorf("asked: %q %q", s.getbufline, got)
+	}
+	s.typ("Kisha <c-j>")
+	if len(s.getbufline) != 1 || !slices.Equal(got, []string{"きしゃ|前の行漢字"}) {
+		t.Errorf("not asked: %q %q", s.getbufline, got)
+	}
+	// Looked up twice for a reading with digits, computed once.
+	n := 0
+	s.p.lib.lookup(context.Background(), OkuriNasi, "1かい", func() string { n++; return "第" })
+	if n != 1 || !slices.Equal(got[1:], []string{"1かい|第", "#かい|第"}) {
+		t.Errorf("before: %d %q", n, got)
 	}
 }

@@ -98,7 +98,7 @@ func (p *Plugin) CompleteOkuri(ctx context.Context, r Reading) []OkuriCompletion
 		if word == stem {
 			continue
 		}
-		for _, c := range p.lib.lookup(ctx, OkuriAri, word, "") {
+		for _, c := range p.lib.lookup(ctx, OkuriAri, word, nil) {
 			out = append(out, OkuriCompletion{word, c, okuri})
 		}
 	}
@@ -107,7 +107,7 @@ func (p *Plugin) CompleteOkuri(ctx context.Context, r Reading) []OkuriCompletion
 
 // Lookup returns the candidates of word, from every dictionary.
 func (p *Plugin) Lookup(ctx context.Context, typ HenkanType, word string) []string {
-	return p.lib.lookup(ctx, typ, word, "")
+	return p.lib.lookup(ctx, typ, word, nil)
 }
 
 // CompleteDone is told that the completion inserted inserted, candidate of
@@ -121,7 +121,7 @@ func (p *Plugin) CompleteDone(ctx context.Context, h sdk.Host, typ HenkanType, w
 	c.invalidateKakutei()
 	if c.state.kind == stateInput && inserted != "" &&
 		strings.HasPrefix(inserted, candidateText(candidate, affixNone)) {
-		cands := p.lib.lookup(ctx, typ, word, "")
+		cands := p.lib.lookup(ctx, typ, word, nil)
 		if i := slices.Index(cands, candidate); i >= 0 {
 			st := state{
 				kind: stateHenkan, mode: modeOkuriNasi, table: c.state.table,

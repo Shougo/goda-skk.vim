@@ -163,9 +163,10 @@ func (l *library) isUnlearned(typ HenkanType, word, candidate string) bool {
 }
 
 // lookup returns the candidates of word from every dictionary, each once,
-// with readings of numbers converted (see numberWord). before is the text
-// before the reading, for a ContextDictionary ("" when unknown).
-func (l *library) lookup(ctx context.Context, typ HenkanType, word, before string) []string {
+// with readings of numbers converted (see numberWord). before gives the
+// text before the reading, for a ContextDictionary (nil: unknown); it is
+// called only when one is looked up, once.
+func (l *library) lookup(ctx context.Context, typ HenkanType, word string, before func() string) []string {
 	if l.user != nil {
 		l.user.reload()
 	}
@@ -187,6 +188,19 @@ func (l *library) lookup(ctx context.Context, typ HenkanType, word, before strin
 			}
 		}
 	}
+	// The text before the reading may ask Vim (getbufline()): not for a
+	// conversion that looks up no ContextDictionary (engine.Fallback).
+	var text *string
+	beforeText := func() string {
+		if text == nil {
+			s := ""
+			if before != nil {
+				s = before()
+			}
+			text = &s
+		}
+		return *text
+	}
 	pattern := numberWord(word)
 	for _, d := range l.all() {
 		d, opt := unwrap(d)
@@ -196,7 +210,7 @@ func (l *library) lookup(ctx context.Context, typ HenkanType, word, before strin
 		find := d.Lookup
 		if cd, ok := d.(ContextDictionary); ok {
 			find = func(ctx context.Context, typ HenkanType, word string) ([]string, error) {
-				return cd.LookupContext(ctx, typ, word, before)
+				return cd.LookupContext(ctx, typ, word, beforeText())
 			}
 		}
 		if pattern != word {

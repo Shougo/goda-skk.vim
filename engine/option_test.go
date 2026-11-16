@@ -103,19 +103,19 @@ func TestFallback(t *testing.T) {
 	}}
 	s := newSim(t, Config{Dictionaries: []Dictionary{testDict, Fallback(phrase)}})
 	// The dictionaries before it give candidates: it is not looked up.
-	if cs := s.p.lib.lookup(ctx, OkuriNasi, "かんじ", ""); slices.Contains(cs, "幹字") {
+	if cs := s.p.lib.lookup(ctx, OkuriNasi, "かんじ", nil); slices.Contains(cs, "幹字") {
 		t.Errorf("looked up after candidates: %v", cs)
 	}
 	// They give none.
-	if cs := s.p.lib.lookup(ctx, OkuriNasi, "はいたつ", ""); !slices.Equal(cs, []string{"配達"}) {
+	if cs := s.p.lib.lookup(ctx, OkuriNasi, "はいたつ", nil); !slices.Equal(cs, []string{"配達"}) {
 		t.Errorf("not looked up: %v", cs)
 	}
-	if cs := s.p.lib.lookup(ctx, OkuriNasi, "1かい", ""); !slices.Equal(cs, []string{"１回"}) {
+	if cs := s.p.lib.lookup(ctx, OkuriNasi, "1かい", nil); !slices.Equal(cs, []string{"１回"}) {
 		t.Errorf("digits: %v", cs)
 	}
 	// The user dictionary is before it.
 	s.p.lib.register(OkuriNasi, "すいとう", "出納")
-	if cs := s.p.lib.lookup(ctx, OkuriNasi, "すいとう", ""); !slices.Equal(cs, []string{"出納"}) {
+	if cs := s.p.lib.lookup(ctx, OkuriNasi, "すいとう", nil); !slices.Equal(cs, []string{"出納"}) {
 		t.Errorf("after the user dictionary: %v", cs)
 	}
 	// Completion: only when the others complete nothing.
@@ -132,10 +132,10 @@ func TestFallbackChain(t *testing.T) {
 	a := memDict{nasi: map[string][]string{"はいたつ": {"配達"}}}
 	b := memDict{nasi: map[string][]string{"はいたつ": {"拝達"}, "ほげ": {"補下"}}}
 	s := newSim(t, Config{Dictionaries: []Dictionary{testDict, Fallback(a), Fallback(b)}})
-	if cs := s.p.lib.lookup(ctx, OkuriNasi, "はいたつ", ""); !slices.Equal(cs, []string{"配達"}) {
+	if cs := s.p.lib.lookup(ctx, OkuriNasi, "はいたつ", nil); !slices.Equal(cs, []string{"配達"}) {
 		t.Errorf("the second is looked up: %v", cs)
 	}
-	if cs := s.p.lib.lookup(ctx, OkuriNasi, "ほげ", ""); !slices.Equal(cs, []string{"補下"}) {
+	if cs := s.p.lib.lookup(ctx, OkuriNasi, "ほげ", nil); !slices.Equal(cs, []string{"補下"}) {
 		t.Errorf("the second is not looked up: %v", cs)
 	}
 }
