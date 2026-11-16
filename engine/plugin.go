@@ -68,6 +68,7 @@ func New(cfg Config) (*Plugin, error) {
 		lib.user.logf = log.Printf
 	}
 	for _, d := range cfg.Dictionaries {
+		d, _ := unwrap(d)
 		if in, ok := d.(Initializer); ok {
 			go func() {
 				if err := in.Init(context.Background()); err != nil {
@@ -438,6 +439,7 @@ var modeFunctions = map[string]Func{
 func (p *Plugin) Close(context.Context) error {
 	var errs []error
 	for _, d := range p.cfg.Dictionaries {
+		d, _ := unwrap(d)
 		if c, ok := d.(io.Closer); ok {
 			errs = append(errs, c.Close())
 		}
