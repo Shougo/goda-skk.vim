@@ -438,7 +438,8 @@ The keys they use are mapped by themselves (no |g:goda_skk#mapped_keys|).
 DICTIONARIES                                           *goda-skk-dictionaries*
 
 Dictionaries are looked up in order, after the user dictionary; their
-candidates are joined without duplicates.
+candidates are joined without duplicates.  Candidates of the same word are
+duplicates, whatever their annotations: the first one is kept.
 
 engine.NewJisyo({path}, {encoding})
 		A dictionary file in the SKK format, read in the background

@@ -326,6 +326,17 @@ func normalizeCandidate(c string) string {
 	return encodeField(word) + ";" + encodeField(note)
 }
 
+// candidateWord is the word of c, as normalizeCandidate gives it, without
+// its annotation: the candidates of a reading are the same if their words
+// are, as ddskk and the other SKK implementations take them.
+func candidateWord(c string) string {
+	if strings.HasPrefix(c, "[") && strings.HasSuffix(c, "]") {
+		return c
+	}
+	word, _, _ := strings.Cut(c, ";")
+	return word
+}
+
 // encodeField is a word or an annotation as a dictionary writes it.
 func encodeField(s string) string {
 	if strings.HasPrefix(s, concatPrefix) && decodeConcat(s) != s {
