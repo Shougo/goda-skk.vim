@@ -337,6 +337,16 @@ func candidateWord(c string) string {
 	return word
 }
 
+// annotated is kept, a candidate, with the annotation of other, one of the
+// same word, when kept has none: a word learned from a dictionary without
+// annotations (Google, say) does not hide those of the others.
+func annotated(kept, other string) string {
+	if candidateWord(kept) == kept && candidateWord(other) != other {
+		return other
+	}
+	return kept
+}
+
 // encodeField is a word or an annotation as a dictionary writes it.
 func encodeField(s string) string {
 	if strings.HasPrefix(s, concatPrefix) && decodeConcat(s) != s {

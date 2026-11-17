@@ -11,19 +11,20 @@ import (
 
 func TestLookupAnnotation(t *testing.T) {
 	// The candidates of the same word are one, the first, whatever their
-	// annotations: in an entry and between dictionaries.
+	// annotations: in an entry and between dictionaries. Without one, it
+	// has that of a later one.
 	a := memDict{nasi: map[string][]string{"あ": {"A;x", "B", "A"}}}
-	b := memDict{nasi: map[string][]string{"あ": {"B;y", "C", "A;z"}}}
+	b := memDict{nasi: map[string][]string{"あ": {"B;y", "C", "A;z", "C;w"}}}
 	s := newSim(t, Config{Dictionaries: []Dictionary{a, b}})
 	got := s.p.Lookup(context.Background(), OkuriNasi, "あ")
-	if want := []string{"A;x", "B", "C"}; !slices.Equal(got, want) {
+	if want := []string{"A;x", "B;y", "C;w"}; !slices.Equal(got, want) {
 		t.Errorf("lookup: %v, want %v", got, want)
 	}
 }
 
 func TestCompleteAnnotation(t *testing.T) {
-	a := memDict{nasi: map[string][]string{"ああ": {"A;x", "A"}}}
-	b := memDict{nasi: map[string][]string{"ああ": {"A;z", "B"}}}
+	a := memDict{nasi: map[string][]string{"ああ": {"A;x", "A", "B"}}}
+	b := memDict{nasi: map[string][]string{"ああ": {"A;z", "B;y"}}}
 	s := newSim(t, Config{Dictionaries: []Dictionary{a, b}})
 	ctx := context.Background()
 	s.typ("A")
@@ -34,7 +35,7 @@ func TestCompleteAnnotation(t *testing.T) {
 			got = append(got, c.Candidate)
 		}
 	}
-	if want := []string{"A;x", "B"}; !slices.Equal(got, want) {
+	if want := []string{"A;x", "B;y"}; !slices.Equal(got, want) {
 		t.Errorf("complete: %v, want %v", got, want)
 	}
 }
@@ -89,5 +90,27 @@ func TestPurgeAnnotation(t *testing.T) {
 	got, _ := u.Lookup(context.Background(), OkuriNasi, "あ")
 	if want := []string{"B"}; !slices.Equal(got, want) {
 		t.Errorf("purge: %v, want %v", got, want)
+	}
+}
+
+func TestLearnedWithoutAnnotation(t *testing.T) {
+	// A word learned without its annotation (from Google, say) does not
+	// hide that of the dictionary file, and is learned again with it.
+	jisyo := memDict{nasi: map[string][]string{"いぜん": {"依然;still", "已然;already", "以前"}}}
+	google := memDict{nasi: map[string][]string{"いぜん": {"以前", "依然", "已然"}}}
+	s := newSim(t, Config{Dictionaries: []Dictionary{jisyo, google}})
+	s.p.lib.user.Register(OkuriNasi, "いぜん", "已然")
+	ctx := context.Background()
+	got := s.p.Lookup(ctx, OkuriNasi, "いぜん")
+	if want := []string{"已然;already", "依然;still", "以前"}; !slices.Equal(got, want) {
+		t.Errorf("lookup: %v, want %v", got, want)
+	}
+	s.typ("Izen <c-j>")
+	b, err := os.ReadFile(s.p.cfg.UserDictionary)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(string(b), "\nいぜん /已然;already/\n") {
+		t.Errorf("user dictionary:\n%s", b)
 	}
 }

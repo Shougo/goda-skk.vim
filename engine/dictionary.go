@@ -173,7 +173,8 @@ func (l *library) lookup(ctx context.Context, typ HenkanType, word string, befor
 		l.user.reload()
 	}
 	var out []string
-	seen := map[string]bool{}
+	// seen: the index in out of each word.
+	seen := map[string]int{}
 	// learned: the words a dictionary that is not NoLearn gave.
 	learned := map[string]bool{}
 	add := func(cs []string, noLearn bool) {
@@ -185,9 +186,11 @@ func (l *library) lookup(ctx context.Context, typ HenkanType, word string, befor
 			if !noLearn {
 				learned[w] = true
 			}
-			if !seen[w] {
-				seen[w] = true
+			if i, ok := seen[w]; !ok {
+				seen[w] = len(out)
 				out = append(out, c)
+			} else {
+				out[i] = annotated(out[i], c)
 			}
 		}
 	}
@@ -254,9 +257,9 @@ func (l *library) complete(ctx context.Context, prefixes []string) []Entry {
 	}
 	byWord := map[string]int{}
 	var out []Entry
-	// seen and learned: the words, by reading, a dictionary gave, and one
-	// that is not NoLearn gave.
-	seen := map[[2]string]bool{}
+	// seen and learned: the words, by reading, a dictionary gave (their
+	// index in the candidates), and one that is not NoLearn gave.
+	seen := map[[2]string]int{}
 	learned := map[[2]string]bool{}
 	for _, d := range l.all() {
 		d, opt := unwrap(d)
@@ -279,9 +282,11 @@ func (l *library) complete(ctx context.Context, prefixes []string) []Entry {
 					if !opt.noLearn {
 						learned[k] = true
 					}
-					if !seen[k] {
-						seen[k] = true
+					if j, ok := seen[k]; !ok {
+						seen[k] = len(out[i].Candidates)
 						out[i].Candidates = append(out[i].Candidates, c)
+					} else {
+						out[i].Candidates[j] = annotated(out[i].Candidates[j], c)
 					}
 				}
 			}
