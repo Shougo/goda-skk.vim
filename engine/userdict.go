@@ -64,8 +64,9 @@ func (u *UserDictionary) Complete(_ context.Context, prefix string) ([]Entry, er
 	return u.j.complete(prefix), nil
 }
 
-// Register puts candidate first among the candidates of word, and writes
-// the file.
+// Register puts candidate first among the candidates of word, in place of
+// those of the same word whatever their annotations (see candidateWord),
+// and writes the file.
 func (u *UserDictionary) Register(typ HenkanType, word, candidate string) {
 	u.reload()
 	u.mu.Lock()
@@ -76,7 +77,8 @@ func (u *UserDictionary) Register(typ HenkanType, word, candidate string) {
 	u.ranks[candidate] = time.Now().UnixNano()
 	t := u.j.table(typ)
 	old := t[word]
-	cs := append([]string{candidate}, slices.DeleteFunc(slices.Clone(old), func(c string) bool { return c == candidate })...)
+	w := candidateWord(normalizeCandidate(candidate))
+	cs := append([]string{candidate}, slices.DeleteFunc(slices.Clone(old), func(c string) bool { return candidateWord(c) == w })...)
 	t[word] = cs
 	if typ == OkuriNasi && old == nil {
 		u.j.index()
@@ -91,13 +93,16 @@ func (u *UserDictionary) rank(candidate string) int64 {
 	return u.ranks[candidate]
 }
 
-// Purge removes candidate from the candidates of word, and writes the file.
+// Purge removes candidate from the candidates of word, with those of the
+// same word whatever their annotations (see candidateWord), and writes the
+// file.
 func (u *UserDictionary) Purge(typ HenkanType, word, candidate string) {
 	u.reload()
 	u.mu.Lock()
 	defer u.mu.Unlock()
 	t := u.j.table(typ)
-	cs := slices.DeleteFunc(slices.Clone(t[word]), func(c string) bool { return c == candidate })
+	w := candidateWord(normalizeCandidate(candidate))
+	cs := slices.DeleteFunc(slices.Clone(t[word]), func(c string) bool { return candidateWord(c) == w })
 	if len(cs) == 0 {
 		delete(t, word)
 		u.j.index()

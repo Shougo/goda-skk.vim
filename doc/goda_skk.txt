@@ -439,7 +439,9 @@ DICTIONARIES                                           *goda-skk-dictionaries*
 
 Dictionaries are looked up in order, after the user dictionary; their
 candidates are joined without duplicates.  Candidates of the same word are
-duplicates, whatever their annotations: the first one is kept.
+duplicates, whatever their annotations: the first one is kept.  So are they
+in the user dictionary: a candidate learned takes the place of the others
+of its word, and purgeCandidate (|goda-skk-key-functions|) removes them all.
 
 engine.NewJisyo({path}, {encoding})
 		A dictionary file in the SKK format, read in the background

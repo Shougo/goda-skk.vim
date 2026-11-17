@@ -328,7 +328,7 @@ func normalizeCandidate(c string) string {
 
 // candidateWord is the word of c, as normalizeCandidate gives it, without
 // its annotation: the candidates of a reading are the same if their words
-// are, as ddskk and the other SKK implementations take them.
+// are, for an annotation only explains the word it follows.
 func candidateWord(c string) string {
 	if strings.HasPrefix(c, "[") && strings.HasSuffix(c, "]") {
 		return c

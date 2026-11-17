@@ -2,6 +2,8 @@ package engine
 
 import (
 	"context"
+	"os"
+	"path/filepath"
 	"slices"
 	"strings"
 	"testing"
@@ -48,5 +50,44 @@ func TestNoLearnAnnotation(t *testing.T) {
 	}
 	if j := userJisyo(t, s); !strings.Contains(j, "\nへんかん /変換;x/\n") {
 		t.Errorf("a candidate of both is not learned:\n%s", j)
+	}
+}
+
+func TestRegisterAnnotation(t *testing.T) {
+	// Learning a candidate takes the place of those of the same word,
+	// whatever their annotations.
+	path := filepath.Join(t.TempDir(), "jisyo")
+	jisyo := okuriAriMarker + "\n" + okuriNasiMarker + "\nあ /B/A;x/A/\n"
+	if err := os.WriteFile(path, []byte(jisyo), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	u := NewUserDictionary(path)
+	u.Register(OkuriNasi, "あ", "A;x")
+	lookup := func() []string {
+		got, _ := u.Lookup(context.Background(), OkuriNasi, "あ")
+		return got
+	}
+	if got, want := lookup(), []string{"A;x", "B"}; !slices.Equal(got, want) {
+		t.Errorf("register: %v, want %v", got, want)
+	}
+	u.Register(OkuriNasi, "あ", "B;y")
+	if got, want := lookup(), []string{"B;y", "A;x"}; !slices.Equal(got, want) {
+		t.Errorf("register: %v, want %v", got, want)
+	}
+}
+
+func TestPurgeAnnotation(t *testing.T) {
+	// Purging a candidate removes those of the same word too, whatever
+	// their annotations: they would come up in its place.
+	path := filepath.Join(t.TempDir(), "jisyo")
+	jisyo := okuriAriMarker + "\n" + okuriNasiMarker + "\nあ /A;x/B/A/\n"
+	if err := os.WriteFile(path, []byte(jisyo), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	u := NewUserDictionary(path)
+	u.Purge(OkuriNasi, "あ", "A;x")
+	got, _ := u.Lookup(context.Background(), OkuriNasi, "あ")
+	if want := []string{"B"}; !slices.Equal(got, want) {
+		t.Errorf("purge: %v, want %v", got, want)
 	}
 }
