@@ -375,7 +375,10 @@ ZenkakuTable		The table of the full-width mode (engine.ZenTable).
 Dictionaries		|goda-skk-dictionaries|.
 
 UserDictionary		The file conversions are learned in
-			("~/.goda-skk-jisyo"; "-" for none).
+			("~/.goda-skk-jisyo"; "-" for none).  As in other
+			SKK implementations, its lines are in the order the
+			readings were learned, the latest first; the
+			completion is in this order.
 
 Keymaps			Key functions by state: {"input": {"<c-l>":
 			"zenkaku"}, "henkan": {...}}; "" removes a key.
@@ -612,8 +615,11 @@ The packages github.com/Shougo/goda-skk.vim/cmp/source/skk and
 being typed (▽):
 
 "skk"		The candidates of the readings that start with it (▽かん:
-		漢字, 感じ, 考え, ...), those learned in this Vim first; as
-		skkeleton's ddc.vim source skkeleton.
+		漢字, 感じ, 考え, ...); as skkeleton's ddc.vim source
+		skkeleton.  The readings of the user dictionary come first,
+		in the order of its lines (the latest learned first), and
+		of each, its first candidate (the last learned) before the
+		others: learning 漢字 does not bring up 幹事 and 監事.
 "skkokuri"	Its candidates with okurigana (▽おくり: 送り, 贈り); as
 		skkeleton_okuri.
 
@@ -797,6 +803,10 @@ DIFFERENCES FROM SKKELETON                                *goda-skk-skkeleton*
   (skkeleton.nvim#246).
 - skkeleton-henkan-highlight and skkeleton-state-popup are built in
   (|goda-skk-highlight|, |goda-skk-state-popup|).
+- The order of the completion is that of the lines of the user dictionary
+  (the latest learned first), as in other SKK implementations, not a file of
+  its own (completionRankFile); the user dictionary is not sorted when
+  written.
 - The completion popup is |g:goda_skk#completion_backend|, not
   completionBackend; enabling and disabling close it (skkeleton.nvim#24).
 - The ddc.vim sources skkeleton and skkeleton_okuri are the goda-cmp.vim

@@ -43,8 +43,11 @@ func (p *Plugin) Reading() (Reading, bool) {
 }
 
 // Complete returns the candidates of the readings that start with r (and go
-// on with the kana of its feed): those learned in this process first, the
-// latest first, then by reading.
+// on with the kana of its feed). The readings of the user dictionary come
+// first, the latest learned first (see UserDictionary), the others after,
+// by reading. The first candidate of each of the user dictionary (the last
+// learned of the reading) comes before the others, so that a reading
+// learned does not bring up all its candidates (#27 of skkeleton).
 func (p *Plugin) Complete(ctx context.Context, r Reading) []Completion {
 	prefixes := []string{r.Kana}
 	if r.Feed != "" {
@@ -60,20 +63,44 @@ func (p *Plugin) Complete(ctx context.Context, r Reading) []Completion {
 	if len(prefixes) == 0 || r.Kana == "" && r.Feed == "" {
 		return nil
 	}
-	var out []Completion
-	for _, e := range p.lib.complete(ctx, prefixes) {
-		for _, c := range e.Candidates {
-			out = append(out, Completion{e.Word, c})
+	entries := p.lib.complete(ctx, prefixes)
+	// learned: how recently each reading of the user dictionary was.
+	learned := map[string]int64{}
+	if u := p.lib.user; u != nil {
+		for _, e := range entries {
+			if at, ok := u.recency(e.Word); ok {
+				learned[e.Word] = at
+			}
 		}
 	}
-	if u := p.lib.user; u != nil {
-		ranks := map[string]int64{}
-		for _, c := range out {
-			ranks[c.Candidate] = u.rank(c.Candidate)
+	slices.SortStableFunc(entries, func(a, b Entry) int {
+		aa, aok := learned[a.Word]
+		ba, bok := learned[b.Word]
+		switch {
+		case aok != bok:
+			if aok {
+				return -1
+			}
+			return 1
+		case aok:
+			return cmp.Compare(ba, aa)
 		}
-		slices.SortStableFunc(out, func(a, b Completion) int {
-			return cmp.Compare(ranks[b.Candidate], ranks[a.Candidate])
-		})
+		return strings.Compare(a.Word, b.Word)
+	})
+	var out []Completion
+	for _, e := range entries {
+		if _, ok := learned[e.Word]; ok && len(e.Candidates) > 0 {
+			out = append(out, Completion{e.Word, e.Candidates[0]})
+		}
+	}
+	for _, e := range entries {
+		cs := e.Candidates
+		if _, ok := learned[e.Word]; ok && len(cs) > 0 {
+			cs = cs[1:]
+		}
+		for _, c := range cs {
+			out = append(out, Completion{e.Word, c})
+		}
 	}
 	return out
 }
