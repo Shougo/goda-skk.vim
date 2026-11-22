@@ -76,7 +76,7 @@ func (u *UserDictionary) reload() {
 	if err != nil {
 		return
 	}
-	u.setJisyo(parseJisyo(string(b)))
+	u.setJisyo(parseJisyo(string(b), true))
 	u.modTime = st.ModTime()
 }
 

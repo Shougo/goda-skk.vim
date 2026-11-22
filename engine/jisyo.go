@@ -44,8 +44,11 @@ func (j *jisyo) table(typ HenkanType) map[string][]string {
 }
 
 // parseJisyo reads a dictionary in the SKK format: "reading /c1/c2;note/",
-// the okuri-ari entries after their marker, then the okuri-nasi ones.
-func parseJisyo(text string) *jisyo {
+// the okuri-ari entries after their marker, then the okuri-nasi ones. With
+// lines, it keeps the order of the readings (ariLines and nasiLines): the
+// user dictionary orders the completion with it, a dictionary file needs
+// it not (SKK-JISYO.L has hundreds of thousands of lines).
+func parseJisyo(text string, lines bool) *jisyo {
 	j := newJisyo()
 	var cur map[string][]string
 	ari := false
@@ -77,9 +80,9 @@ func parseJisyo(text string) *jisyo {
 				}
 			}
 			cands = prev
-		} else if ari {
+		} else if lines && ari {
 			j.ariLines = append(j.ariLines, word)
-		} else {
+		} else if lines {
 			j.nasiLines = append(j.nasiLines, word)
 		}
 		cur[word] = cands
@@ -212,8 +215,7 @@ func (d *Jisyo) Init(context.Context) error {
 			d.err = fmt.Errorf("%s: %w", d.path, err)
 			return
 		}
-		d.j = parseJisyo(text)
-		d.j.ariLines, d.j.nasiLines = nil, nil
+		d.j = parseJisyo(text, false)
 	})
 	return d.err
 }

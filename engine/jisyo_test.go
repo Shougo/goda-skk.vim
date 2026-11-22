@@ -23,8 +23,23 @@ const sampleJisyo = `;; -*- mode: fundamental; coding: euc-jp -*-
 がいひ /外皮/外被/該非/
 `
 
+func TestParseJisyoLines(t *testing.T) {
+	// The order of the lines, for the user dictionary only: a reading on
+	// two lines is where it is first.
+	j := parseJisyo(sampleJisyo, true)
+	if want := []string{"おくr", "はしr"}; !slices.Equal(j.ariLines, want) {
+		t.Errorf("ari: %q, want %q", j.ariLines, want)
+	}
+	if want := []string{"かっこ", "かんじ", "かんじょう", "がいひ"}; !slices.Equal(j.nasiLines, want) {
+		t.Errorf("nasi: %q, want %q", j.nasiLines, want)
+	}
+	if j := parseJisyo(sampleJisyo, false); j.ariLines != nil || j.nasiLines != nil {
+		t.Errorf("a dictionary file keeps them: %q %q", j.ariLines, j.nasiLines)
+	}
+}
+
 func TestParseJisyo(t *testing.T) {
-	j := parseJisyo(sampleJisyo)
+	j := parseJisyo(sampleJisyo, false)
 	for _, tc := range []struct {
 		typ  HenkanType
 		word string
