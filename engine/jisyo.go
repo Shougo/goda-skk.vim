@@ -27,6 +27,9 @@ type jisyo struct {
 	okuriNasi map[string][]string
 	// words are the okuri-nasi readings, sorted, for completion.
 	words []string
+	// ariLines and nasiLines are the readings in the order of their lines
+	// in the file (the user dictionary keeps it).
+	ariLines, nasiLines []string
 }
 
 func newJisyo() *jisyo {
@@ -74,6 +77,10 @@ func parseJisyo(text string) *jisyo {
 				}
 			}
 			cands = prev
+		} else if ari {
+			j.ariLines = append(j.ariLines, word)
+		} else {
+			j.nasiLines = append(j.nasiLines, word)
 		}
 		cur[word] = cands
 	}
@@ -206,6 +213,7 @@ func (d *Jisyo) Init(context.Context) error {
 			return
 		}
 		d.j = parseJisyo(text)
+		d.j.ariLines, d.j.nasiLines = nil, nil
 	})
 	return d.err
 }
