@@ -251,6 +251,7 @@ func (p *Plugin) run(ctx context.Context, h sdk.Host, fn string, keys []string, 
 		c.pre.output("")
 		if st.PumVisible {
 			p.startedOver = true
+			c.undo.typedOn = &strings.Builder{}
 		}
 	}
 	if fn == "toggle" {

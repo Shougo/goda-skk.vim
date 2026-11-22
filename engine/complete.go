@@ -162,8 +162,13 @@ func (p *Plugin) CompleteDone(ctx context.Context, h sdk.Host, typ HenkanType, w
 				st.henkanFeed = word[:len(word)-size]
 			}
 			c.recordKakutei(inserted, st)
+			// Keys typed on since wrote after it.
+			if p.startedOver && c.undo.typedOn != nil {
+				c.undo.pending.tail = c.undo.typedOn.String()
+			}
 		}
 	}
+	c.undo.typedOn = nil
 	// The pre-edit was replaced, unless a key typed on since replaced it
 	// already: the state is that of the key, maybe a new reading.
 	if !p.startedOver {

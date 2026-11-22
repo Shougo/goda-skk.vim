@@ -46,6 +46,10 @@ type undoState struct {
 	remembered    *rememberedPoint
 	// restore is where to put the cursor after this handling.
 	restore *cursorPoint
+	// typedOn is what was typed since a key started over on a completion
+	// still to tell it was done (Plugin.startedOver): the tail of its
+	// record, which comes after the text.
+	typedOn *strings.Builder
 }
 
 func (s *state) clone() state {
