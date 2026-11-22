@@ -106,6 +106,9 @@ func (c *Context) kakutei(s string) {
 	if p := c.undo.pending; p != nil {
 		p.tail += s
 	}
+	if c.undo.typedOn != nil {
+		c.undo.typedOn.WriteString(s)
+	}
 	c.pre.doKakutei(s)
 }
 

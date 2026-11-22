@@ -122,6 +122,31 @@ func TestCompleteDoneAfterKey(t *testing.T) {
 	}
 }
 
+// The completion accepted by typing on is told after the keys wrote
+// something: kakuteiUndo still takes it back.
+func TestCompleteDoneAfterKeyUndo(t *testing.T) {
+	ctx := context.Background()
+	for _, keys := range []string{"a", "de", "."} {
+		s := newSim(t, Config{Keymaps: map[string]map[string]string{"input": {"<c-z>": "kakuteiUndo"}}})
+		s.typ("Kan")
+		s.line = "感じ"
+		s.pum = true
+		s.typ(keys)
+		s.pum = false
+		s.p.CompleteDone(ctx, s, OkuriNasi, "かんじ", "感じ", "感じ")
+		after := s.line[len("感じ"):]
+		s.typ("<c-z>")
+		if s.line != "▼感じ" || s.after != after {
+			t.Errorf("%q: undo: %q|%q", keys, s.line, s.after)
+		}
+		// Another candidate, and the cursor back after what was typed on.
+		s.typ(" <c-j>")
+		if s.line != "漢字"+after || s.after != "" {
+			t.Errorf("%q: another: %q|%q", keys, s.line, s.after)
+		}
+	}
+}
+
 // EggLikeNewline: <CR> with an item selected has Vim choose it, without
 // a new line.
 func TestEggLikeNewlineConfirm(t *testing.T) {
