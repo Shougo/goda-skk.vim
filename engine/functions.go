@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"strings"
 	"unicode/utf8"
+
+	"github.com/Shougo/goda.vim/sdk"
 )
 
 // Func is a function a key or a kana rule runs, with the key that runs it.
@@ -627,18 +629,8 @@ func escape(c *Context, key string) {
 	c.reenable = c.cfg.KeepState
 }
 
+// toInt is the integer of a number from the editor, 0 for another value.
 func toInt(v any) int {
-	switch n := v.(type) {
-	case int:
-		return n
-	case int64:
-		return int(n)
-	case uint64:
-		return int(n)
-	case int8:
-		return int(n)
-	case float64:
-		return int(n)
-	}
-	return 0
+	n, _ := sdk.Int(v)
+	return n
 }

@@ -2,7 +2,7 @@ github.com/Shougo/goda-cmp-ui-native.vim v0.1.0 h1:TE8/8bAOoU0K/OT7p0g9CFBbIKVhz
 github.com/Shougo/goda-cmp-ui-native.vim v0.1.0/go.mod h1:5b0NAICoZGGpdeUV5UBQItU/CTqiVSzrvh05Y/hlAgk=
 github.com/Shougo/goda-cmp.vim v0.8.0 h1:rveT+wvMf3Ir9xLevqmPPREN4vdGN9mcTyv5/XWRmBc=
 github.com/Shougo/goda-cmp.vim v0.8.0/go.mod h1:TVErggvuoi7a075y9AeTFh32DrIW5ZDtWLZzUHqBIk0=
-github.com/Shougo/goda.vim v0.9.0 h1:FVqf1RkS6XgUbU6WFE7LAvLGzA2ETTdQDybXAMRgHqo=
-github.com/Shougo/goda.vim v0.9.0/go.mod h1:ohGPksso9XrqpdVRLS3TzoUtz2x3yMT8x+x+MnMpbM8=
+github.com/Shougo/goda.vim v0.10.0 h1:vgsPQ8phkB/QnFz+J36ZmYGf8TwYEbY+qczkNGakIsw=
+github.com/Shougo/goda.vim v0.10.0/go.mod h1:ohGPksso9XrqpdVRLS3TzoUtz2x3yMT8x+x+MnMpbM8=
 golang.org/x/text v0.44.0 h1:YItdp/mQNGnsmrgpcdA5yQ3bnRxCfo/Tj/iByGW9GGo=
 golang.org/x/text v0.44.0/go.mod h1:S4FR1waQ9LbjQTls97SyRjDaUUVkaM+cXwwuG/G+MwY=
