@@ -18,51 +18,8 @@ let g:goda_skk#state = #{phase: '', henkanFeed: ''}
 " ---------------------------------------------------------------------------
 " The binary
 
-" The binary is machine specific, so it is built into a cache directory, not
-" into the configuration directory (which belongs in your dotfiles).
-function! s:cache_dir() abort
-  if has('nvim')
-    let base = stdpath('cache')
-  elseif !empty($XDG_CACHE_HOME)
-    let base = $XDG_CACHE_HOME . '/vim'
-  elseif has('win32') && !empty($LOCALAPPDATA)
-    let base = $LOCALAPPDATA . '/vim'
-  else
-    let base = expand('~/.cache/vim', 1)
-  endif
-  return base . '/goda-skk'
-endfunction
-
-function! s:binary() abort
-  if exists('g:goda_skk#binary')
-    " (Not 'wildignore': '*.exe' in it on Windows made it "".)
-    return fnamemodify(expand(g:goda_skk#binary, 1), ':p')
-  endif
-  return s:cache_dir() . '/goda-skk' . (has('win32') ? '.exe' : '')
-endfunction
-
-" The options of goda#register(): the version of the Vim script, and how to
-" build the binary when there is none or it is of another version (goda.vim
-" builds it then). Not for the binary of g:goda_skk#binary: the user builds it.
-function! s:register_opts() abort
-  if exists('g:goda_skk#binary')
-    return s:version
-  endif
-  return extend(#{build: function('s:build_binary'), bin: s:binary()}, s:version)
-endfunction
-
-" The build of the binary for goda.vim, as it starts it (nothing else: it
-" is not running).
-function! s:build_binary() abort
-  call goda#build(#{name: 'skk', dir: s:config_dir(), bin: s:binary()})
-endfunction
-
-function! s:config_dir() abort
-  if exists('g:goda_skk#config_dir')
-    return expand(g:goda_skk#config_dir, 1)
-  endif
-  return (has('nvim') ? stdpath('config') : expand('~/.vim', 1)) . '/goda-skk'
-endfunction
+" (The binary has no "status" to ask.)
+let s:goda = goda#configured#new('skk', extend(#{status: v:false}, s:version))
 
 " Build the configuration (a Go module in g:goda_skk#config_dir) into
 " g:goda_skk#binary with goda#build(): with the plugins installed
@@ -70,29 +27,11 @@ endfunction
 " again with the next key.
 function! goda_skk#build() abort
   call goda_skk#disable()
-  call goda#build(#{name: 'skk', dir: s:config_dir(), bin: s:binary()})
-  call goda#register('skk', function('s:start'), s:register_opts())
+  call s:goda.build()
+  call s:goda.register()
 endfunction
 
-" Start the binary: goda.vim calls it when a key needs the plugin "skk" and no
-" binary serves it (not started yet, stopped, or exited; another binary can
-" contain the plugin).
-function! s:start() abort
-  let bin = s:binary()
-  if !executable(bin)
-    throw 'goda-skk: ' . bin . ' does not exist yet; build it with: call goda_skk#build()'
-  endif
-  let plugins = goda#start(bin)
-  if index(plugins, 'skk') < 0
-    if !empty(plugins)
-      call goda#stop(plugins[0])
-    endif
-    throw 'goda-skk: ' . bin . ' does not contain the "skk" plugin'
-  endif
-endfunction
-
-" (Again after a build: a start that failed is tried again.)
-call goda#register('skk', function('s:start'), s:register_opts())
+call s:goda.register()
 
 " ---------------------------------------------------------------------------
 " Keys
