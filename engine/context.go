@@ -133,8 +133,9 @@ func (c *Context) output() string {
 }
 
 // contextLines is how many lines before the cursor's go into the text before
-// the reading, those of the paragraph only.
-const contextLines = 3
+// the reading, those of the paragraph only: enough for what a dictionary
+// takes of it (karukan.Params.ContextLength), which says how much.
+const contextLines = 20
 
 // before is the text before the pre-edit: the line before the cursor when
 // the keys came, without the pre-edit then, and what was confirmed since.

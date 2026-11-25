@@ -9,7 +9,7 @@ import (
 // recentLength is how many characters of the text confirmed in a buffer are
 // kept, and recentBuffers for how many buffers.
 const (
-	recentLength  = 200
+	recentLength  = 1000
 	recentBuffers = 16
 )
 

@@ -2,6 +2,7 @@ package engine
 
 import (
 	"context"
+	"fmt"
 	"slices"
 	"strings"
 	"testing"
@@ -83,7 +84,7 @@ func TestContextLines(t *testing.T) {
 	if !slices.Equal(got, want) {
 		t.Errorf("before:\n%q\nwant:\n%q", got, want)
 	}
-	if want := []string{"1 3 5", "1 7 9", "1 10 12"}; !slices.Equal(s.getbufline, want) {
+	if want := []string{"1 1 5", "1 1 9", "1 1 12"}; !slices.Equal(s.getbufline, want) {
 		t.Errorf("getbufline: %q, want %q", s.getbufline, want)
 	}
 }
@@ -187,5 +188,23 @@ func TestContextOnlyWhenAsked(t *testing.T) {
 	s.p.lib.lookup(context.Background(), OkuriNasi, "1かい", func() string { n++; return "第" })
 	if n != 1 || !slices.Equal(got[1:], []string{"1かい|第", "#かい|第"}) {
 		t.Errorf("before: %d %q", n, got)
+	}
+}
+
+func TestContextLinesLimit(t *testing.T) {
+	// At most contextLines lines before the cursor's.
+	var got []string
+	d := ctxDict{memDict{nasi: map[string][]string{"きしゃ": {"汽車"}}}, &got}
+	s := newSim(t, Config{Dictionaries: []Dictionary{d}})
+	for i := range contextLines + 5 {
+		s.line += fmt.Sprintf("行%d番\n", i)
+	}
+	s.typ("Kisha ")
+	want := ""
+	for i := 5; i < contextLines+5; i++ {
+		want += fmt.Sprintf("行%d番", i)
+	}
+	if !slices.Equal(got, []string{"きしゃ|" + want}) {
+		t.Errorf("before: %q, want %q", got, want)
 	}
 }
