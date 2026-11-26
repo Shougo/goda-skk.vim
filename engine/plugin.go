@@ -62,7 +62,8 @@ func New(cfg Config) (*Plugin, error) {
 	if err != nil {
 		return nil, fmt.Errorf("goda-skk: %w", err)
 	}
-	lib := &library{dicts: cfg.Dictionaries, logf: log.Printf, maxLearn: cfg.MaxLearnLength, sahen: *cfg.SahenConvert}
+	lib := &library{dicts: cfg.Dictionaries, logf: log.Printf, maxLearn: cfg.MaxLearnLength, sahen: *cfg.SahenConvert,
+		tracing: cfg.ConvertLog != ""}
 	if cfg.UserDictionary != "-" {
 		lib.user = NewUserDictionary(cfg.UserDictionary)
 		lib.user.logf = log.Printf

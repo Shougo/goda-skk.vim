@@ -438,6 +438,22 @@ ShowAnnotation		Show the annotations of the candidates while
 			by one in the popup (|goda-skk-popup|), and those of
 			the list after their candidates ("s: 完治;cure").
 
+ConvertLog		A file to append a line of JSON to for each
+			conversion confirmed ("confirm", or "register" for
+			a word registered) or canceled ("cancel"): the
+			reading, the candidate and its index, the
+			dictionaries that gave it ("sources", by their index
+			among the dictionaries, 0 being the user
+			dictionary), the first candidate that Prefer
+			(|goda-skk-prefer|) moved down ("first") and the one
+			it moved first ("preferred"), the characters of
+			text before the reading sent ("context", -1: none),
+			and how long each dictionary took ("times_ms").  For
+			tuning the dictionaries ("": none).  It keeps what
+			you convert: remove it when done. >
+	ConvertLog: "~/.cache/goda-skk-convert.log",
+<
+
 The fields that default to true, the markers and ShowCandidatesCount are
 pointers: `ImmediatelyCancel: new(false)`, `MarkerHenkan: new("")`,
 `ShowCandidatesCount: new(0)`.

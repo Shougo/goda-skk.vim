@@ -284,7 +284,9 @@ func henkanFirst(c *Context, key string) {
 			s.affix = affixSuffix
 		}
 	}
+	c.lib.trace = nil
 	s.candidates = c.lib.lookupOkuri(c.ctx, s.mode.henkanType(), s.word, s.okuri(), c.before)
+	s.trace, c.lib.trace = c.lib.trace, nil
 	henkanForward(c, "")
 }
 
@@ -441,6 +443,10 @@ func registerDone(c *Context, word string) {
 	}
 	c.state = r.state
 	c.state.candidates, c.state.index = []string{word}, 0
+	if t := c.state.trace; t != nil {
+		c.state.trace = &lookupTrace{sources: t.sources, times: t.times,
+			first: t.first, preferred: t.preferred, context: t.context, count: t.count, registered: true}
+	}
 	// Registered even past MaxLearnLength, which kakutei keeps to.
 	c.lib.register(c.state.mode.henkanType(), c.state.word, c.state.okuri(), word)
 	kakutei(c)
@@ -461,6 +467,7 @@ func kakutei(c *Context) {
 			cand = s.candidates[s.index]
 		}
 		if cand != "" {
+			c.logConversion("confirm", s)
 			c.lib.learn(s.mode.henkanType(), s.word, s.okuri(), cand)
 			c.lastCandidate = candidateRef{s.mode.henkanType(), s.word, cand}
 		}
@@ -504,6 +511,9 @@ func newline(c *Context, _ string) {
 // with nothing to drop, it leaves the command line.
 func cancel(c *Context, _ string) {
 	s := &c.state
+	if s.kind == stateHenkan {
+		c.logConversion("cancel", s)
+	}
 	if s.kind == stateInput && s.mode == modeDirect && c.vimMode == "c" {
 		c.kakutei("\x03")
 	}

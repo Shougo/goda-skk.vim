@@ -7,6 +7,7 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"time"
 	"unicode/utf8"
 )
 
@@ -135,6 +136,9 @@ type library struct {
 	maxLearn int
 	// sahen: Config.SahenConvert.
 	sahen bool
+	// tracing: lookupOkuri keeps trace, what it found (Config.ConvertLog).
+	tracing bool
+	trace   *lookupTrace
 
 	mu sync.Mutex
 	// unlearned are the words of the candidates (candidateWord) that only
@@ -238,6 +242,12 @@ func (l *library) lookupWith(ctx context.Context, typ HenkanType, word, okuri st
 	if l.user != nil {
 		l.user.reload()
 	}
+	var trace *lookupTrace
+	if l.tracing && !blocksOnly {
+		trace = &lookupTrace{sources: map[string][]string{}, times: map[string]float64{}, context: -1}
+	}
+	// name: that of the dictionary looked up, for trace.
+	name := ""
 	var out []string
 	// seen: the index in out of each word.
 	seen := map[string]int{}
@@ -249,6 +259,9 @@ func (l *library) lookupWith(ctx context.Context, typ HenkanType, word, okuri st
 			// another dictionary is the same.
 			c = normalizeCandidate(c)
 			w := candidateWord(c)
+			if trace != nil && !slices.Contains(trace.sources[w], name) {
+				trace.sources[w] = append(trace.sources[w], name)
+			}
 			if !noLearn {
 				learned[w] = true
 			}
@@ -281,11 +294,13 @@ func (l *library) lookupWith(ctx context.Context, typ HenkanType, word, okuri st
 		}
 	}
 	pattern := numberWord(word)
-	for _, d := range l.all() {
+	for i, d := range l.all() {
 		d, opt := unwrap(d)
 		if opt.fallback && len(out) > 0 {
 			continue
 		}
+		name = dictionaryName(i, d)
+		start := time.Now()
 		find := d.Lookup
 		// sure: the dictionary is sure of its first candidate for word.
 		sure := true
@@ -324,19 +339,25 @@ func (l *library) lookupWith(ctx context.Context, typ HenkanType, word, okuri st
 			for _, p := range ps {
 				cs = append(cs, convertNumber(p, word))
 			}
+			trace.took(name, start)
 			add(cs, opt.noLearn)
 			prefer(cs, opt, sure)
 			continue
 		}
 		cs, err := find(ctx, typ, word)
 		l.report(err)
+		trace.took(name, start)
 		add(cs, opt.noLearn)
 		prefer(cs, opt, sure)
 	}
 	if stem, ok := sahenStem(typ, word, okuri); ok && l.sahen {
+		name = "sahen"
 		add(l.lookupSahen(ctx, stem), false)
 	}
 	if i, ok := seen[preferred]; ok && i > 0 {
+		if trace != nil {
+			trace.first, trace.preferred = candidateWord(out[0]), preferred
+		}
 		c := out[i]
 		copy(out[1:i+1], out[:i])
 		out[0] = c
@@ -351,6 +372,13 @@ func (l *library) lookupWith(ctx context.Context, typ HenkanType, word, okuri st
 		}
 	}
 	l.remember(typ, word, unlearned, true)
+	if trace != nil {
+		trace.count = len(out)
+		if text != nil {
+			trace.context = utf8.RuneCountInString(*text)
+		}
+		l.trace = trace
+	}
 	return out
 }
 

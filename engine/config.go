@@ -80,6 +80,11 @@ type Config struct {
 	// converting: that of the candidate shown in the popup, and those of
 	// the list after their candidates (default true).
 	ShowAnnotation *bool
+	// ConvertLog: a file a line of JSON is appended to for each
+	// conversion confirmed or canceled, with the reading, the candidate,
+	// the dictionaries that gave it and how long each took ("": none). For
+	// tuning the dictionaries; it keeps what is converted.
+	ConvertLog string
 }
 
 // Defaults is the default configuration.

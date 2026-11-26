@@ -69,6 +69,8 @@ func (c converter) apply(s string) string {
 
 // state is where the input is.
 type state struct {
+	// trace: what the lookup of the candidates found (Config.ConvertLog).
+	trace *lookupTrace
 	kind  stateKind
 	mode  inputMode
 	affix affix
