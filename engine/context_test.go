@@ -208,3 +208,41 @@ func TestContextLinesLimit(t *testing.T) {
 		t.Errorf("before: %q, want %q", got, want)
 	}
 }
+
+// okuriDict is an OkuriDictionary that records what it is told.
+type okuriDict struct {
+	ctxDict
+	okuri *[]string
+}
+
+func (d okuriDict) LookupOkuri(_ context.Context, word, okuri, before string) ([]string, error) {
+	*d.okuri = append(*d.okuri, word+"|"+okuri+"|"+before)
+	switch word {
+	case "おおi":
+		return []string{"多"}, nil
+	case "いっt":
+		return []string{"言っ"}, nil
+	}
+	return nil, nil
+}
+
+func TestOkuriDictionary(t *testing.T) {
+	var got, okuri []string
+	d := okuriDict{ctxDict{memDict{nasi: map[string][]string{"おおいに": {"大いに"}}}, &got}, &okuri}
+	s := newSim(t, Config{Dictionaries: []Dictionary{d}})
+	s.line = "人が"
+	// With okurigana: the okurigana typed and the text before.
+	s.typ("OoI<c-j>")
+	s.typ("ItTa<c-j>")
+	// Without: as a ContextDictionary.
+	s.typ("Ooini <c-j>")
+	if s.line != "人が多い言った大いに" {
+		t.Errorf("line: %q", s.line)
+	}
+	if want := []string{"おおi|い|人が", "いっt|た|人が多い"}; !slices.Equal(okuri, want) {
+		t.Errorf("okuri: %q, want %q", okuri, want)
+	}
+	if want := []string{"おおいに|人が多い言った"}; !slices.Equal(got, want) {
+		t.Errorf("context: %q, want %q", got, want)
+	}
+}

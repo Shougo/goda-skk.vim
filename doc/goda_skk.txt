@@ -483,8 +483,9 @@ karukan.New({params})                                   *goda-skk-karukan*
 		(https://github.com/togatoga/karukan), a small language
 		model run by llama.cpp on the local machine; package
 		github.com/Shougo/goda-skk.vim/dictionary/karukan.  It
-		converts readings without okurigana as one phrase, and does
-		not complete.  {params} (karukan.Params):
+		converts readings without okurigana as one phrase (with
+		OkuriAri, those with okurigana too), and does not complete.
+		{params} (karukan.Params):
 		URL		karukan-server (default karukan.DefaultURL,
 				"http://127.0.0.1:3000")
 		Model		the key of the model in the [models] table
@@ -497,6 +498,15 @@ karukan.New({params})                                   *goda-skk-karukan*
 				none for another one)
 		BeamSearch	"" (the server's default) or "d1_greedy"
 				(faster)
+		OkuriAri	convert readings with okurigana too
+				(default false): the stem and the
+				okurigana typed, as a phrase after the
+				text before them ("おおい" after "人が"),
+				give the stems of the candidates that end
+				with the okurigana ("多").  The text
+				before tells "書く" from "掻く"; the text
+				after ("大いに") is not typed yet.  Each
+				conversion with okurigana asks the server
 		Timeout		for a request (default time.Second)
 		A request not answered in time gives nothing, as does a
 		server still loading its models, and a server that cannot
@@ -599,6 +609,14 @@ The text may be anything in the buffer: a password, a secret.  Only
 otherwise, is one; |goda-skk-google| is not told it, and neither is
 |goda-skk-skkserv|, whose protocol has no room for it.  Write a
 ContextDictionary that sends it out of the machine only knowing that.
+
+A ContextDictionary that also has this method is an engine.OkuriDictionary:
+it is called instead of LookupContext for a reading with okurigana
+("おおi"), with the okurigana typed ("い"; "た" of "ItTa", whose reading is
+"いっt"). >go
+	LookupOkuri(ctx context.Context, word, okuri, before string)
+	([]string, error)
+<
 
 Readings with digits look up "#" in the dictionaries (the reading "1かい"
 finds "#かい /#1回/#3回/"), and #0-#3, #5, #8 and #9 convert the number.

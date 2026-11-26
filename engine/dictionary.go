@@ -38,6 +38,14 @@ type ContextDictionary interface {
 	LookupContext(ctx context.Context, typ HenkanType, word, before string) ([]string, error)
 }
 
+// OkuriDictionary is a ContextDictionary that also converts a reading with
+// okurigana knowing the okurigana typed ("い" of "おおi"): LookupOkuri is
+// called instead of LookupContext for one, with okuri.
+type OkuriDictionary interface {
+	ContextDictionary
+	LookupOkuri(ctx context.Context, word, okuri, before string) ([]string, error)
+}
+
 // Initializer is a Dictionary that prepares itself (reads its file) when
 // the plugin starts, in the background.
 type Initializer interface {
@@ -169,6 +177,12 @@ func (l *library) isUnlearned(typ HenkanType, word, candidate string) bool {
 // text before the reading, for a ContextDictionary (nil: unknown); it is
 // called only when one is looked up, once.
 func (l *library) lookup(ctx context.Context, typ HenkanType, word string, before func() string) []string {
+	return l.lookupOkuri(ctx, typ, word, "", before)
+}
+
+// lookupOkuri is lookup with the okurigana typed of a reading with
+// okurigana, for an OkuriDictionary ("": unknown).
+func (l *library) lookupOkuri(ctx context.Context, typ HenkanType, word, okuri string, before func() string) []string {
 	if l.user != nil {
 		l.user.reload()
 	}
@@ -214,7 +228,11 @@ func (l *library) lookup(ctx context.Context, typ HenkanType, word string, befor
 			continue
 		}
 		find := d.Lookup
-		if cd, ok := d.(ContextDictionary); ok {
+		if od, ok := d.(OkuriDictionary); ok && typ == OkuriAri && okuri != "" {
+			find = func(ctx context.Context, _ HenkanType, word string) ([]string, error) {
+				return od.LookupOkuri(ctx, word, okuri, beforeText())
+			}
+		} else if cd, ok := d.(ContextDictionary); ok {
 			find = func(ctx context.Context, typ HenkanType, word string) ([]string, error) {
 				return cd.LookupContext(ctx, typ, word, beforeText())
 			}

@@ -284,7 +284,11 @@ func henkanFirst(c *Context, key string) {
 			s.affix = affixSuffix
 		}
 	}
-	s.candidates = c.lib.lookup(c.ctx, s.mode.henkanType(), s.word, c.before)
+	okuri := ""
+	if s.mode.henkanType() == OkuriAri {
+		okuri = s.okuriFeed
+	}
+	s.candidates = c.lib.lookupOkuri(c.ctx, s.mode.henkanType(), s.word, okuri, c.before)
 	henkanForward(c, "")
 }
 

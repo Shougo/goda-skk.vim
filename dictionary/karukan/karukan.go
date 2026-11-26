@@ -8,7 +8,8 @@
 //		karukan.New(karukan.Params{}),
 //	},
 //
-// It converts readings without okurigana only, as one phrase, and does not
+// It converts readings without okurigana as one phrase (with OkuriAri,
+// those with okurigana too: an engine.OkuriDictionary), and does not
 // complete. Its candidates come after those of the dictionaries before it;
 // wrapped as engine.Fallback(engine.NoLearn(karukan.New(...))), it converts
 // only the readings they do not have, and its phrases are not learned.
@@ -31,9 +32,12 @@ import (
 	"net/http"
 	"net/netip"
 	"net/url"
+	"slices"
 	"strings"
 	"sync"
 	"time"
+	"unicode"
+	"unicode/utf8"
 
 	"github.com/Shougo/goda-skk.vim/engine"
 )
@@ -63,6 +67,13 @@ type Params struct {
 	// another one: the text may be anything in the buffer. Set it to send
 	// the text to another machine.
 	ContextLength *int
+	// OkuriAri converts readings with okurigana too (off by default): the
+	// stem and the okurigana typed as a phrase after the text before them
+	// ("おおい" after "人が"), and the stems of the candidates that end with
+	// the okurigana ("多"). The text before tells "書く" from "掻く"; the
+	// text after ("大いに") is not typed yet. A conversion with okurigana
+	// asks the server then.
+	OkuriAri bool
 	// Timeout bounds a request (default 1 second).
 	Timeout time.Duration
 	// Client makes the requests (default http.DefaultClient).
@@ -127,6 +138,49 @@ func (d *Dictionary) LookupContext(ctx context.Context, typ engine.HenkanType, w
 	if typ != engine.OkuriNasi || word == "" || strings.Contains(word, "#") {
 		return nil, nil
 	}
+	return d.convert(ctx, word, before)
+}
+
+// LookupOkuri asks for the candidates of the stem of word with okuri, the
+// okurigana typed, after before (Params.OkuriAri).
+func (d *Dictionary) LookupOkuri(ctx context.Context, word, okuri, before string) ([]string, error) {
+	if !d.p.OkuriAri || okuri == "" || strings.Contains(word, "#") {
+		return nil, nil
+	}
+	// "おおi": the stem, without the consonant of the okurigana.
+	stem := strings.TrimRightFunc(word, func(r rune) bool { return r < utf8.RuneSelf })
+	if stem == "" {
+		return nil, nil
+	}
+	cs, err := d.convert(ctx, stem+okuri, before)
+	var out []string
+	for _, c := range cs {
+		s, ok := strings.CutSuffix(c, okuri)
+		if ok && s != stem && isStem(s) && !slices.Contains(out, s) {
+			out = append(out, s)
+		}
+	}
+	return out, err
+}
+
+// isStem reports whether s may be the stem of a word: Japanese, with a
+// kanji ("多", not "多(タ)" or "おお").
+func isStem(s string) bool {
+	kanji := false
+	for _, r := range s {
+		switch {
+		case unicode.Is(unicode.Han, r) || r == '々':
+			kanji = true
+		case unicode.Is(unicode.Hiragana, r) || unicode.Is(unicode.Katakana, r) || r == 'ー':
+		default:
+			return false
+		}
+	}
+	return kanji
+}
+
+// convert asks the server for the candidates of reading after before.
+func (d *Dictionary) convert(ctx context.Context, word, before string) ([]string, error) {
 	if d.resting() {
 		return nil, nil
 	}
@@ -226,4 +280,4 @@ func (d *Dictionary) fail() {
 	d.failedAt = time.Now()
 }
 
-var _ engine.ContextDictionary = (*Dictionary)(nil)
+var _ engine.OkuriDictionary = (*Dictionary)(nil)

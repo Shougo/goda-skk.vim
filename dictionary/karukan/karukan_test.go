@@ -201,3 +201,58 @@ func TestContextLocal(t *testing.T) {
 		}
 	}
 }
+
+func TestLookupOkuri(t *testing.T) {
+	var got []request
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		var req request
+		json.NewDecoder(r.Body).Decode(&req)
+		got = append(got, req)
+		switch req.Hiragana {
+		case "おおい":
+			w.Write([]byte(`{"candidates":["多い","覆い","おおい","多(タ)い","大井","多い"]}`))
+		case "いった":
+			w.Write([]byte(`{"candidates":["言った","行った","いった"]}`))
+		default:
+			w.Write([]byte(`{"candidates":[]}`))
+		}
+	}))
+	defer srv.Close()
+	ctx := context.Background()
+	// Off by default: the server is not asked.
+	off := New(Params{URL: srv.URL})
+	if cs, err := off.LookupOkuri(ctx, "おおi", "い", "人が"); err != nil || cs != nil || len(got) != 0 {
+		t.Errorf("off: %q %v %d", cs, err, len(got))
+	}
+	d := New(Params{URL: srv.URL, OkuriAri: true})
+	for _, c := range []struct {
+		word, okuri string
+		want        []string
+	}{
+		// The stems of the candidates that end with the okurigana, with a
+		// kanji: not "おお", "多(タ)" or "大井".
+		{"おおi", "い", []string{"多", "覆"}},
+		// The stem typed with a sokuon ("ItTa").
+		{"いっt", "た", []string{"言っ", "行っ"}},
+	} {
+		cs, err := d.LookupOkuri(ctx, c.word, c.okuri, "人が")
+		if err != nil || !slices.Equal(cs, c.want) {
+			t.Errorf("%s: %q %v, want %q", c.word, cs, err, c.want)
+		}
+	}
+	if want := []request{
+		{Hiragana: "おおい", Context: "人が", NumCandidates: 5},
+		{Hiragana: "いった", Context: "人が", NumCandidates: 5},
+	}; !slices.Equal(got, want) {
+		t.Errorf("requests: %+v", got)
+	}
+	// Not asked: no okurigana, a pattern of digits, a reading with
+	// okurigana as a ContextDictionary.
+	n := len(got)
+	d.LookupOkuri(ctx, "おおi", "", "")
+	d.LookupOkuri(ctx, "#かi", "い", "")
+	d.LookupContext(ctx, engine.OkuriAri, "おおi", "人が")
+	if len(got) != n {
+		t.Errorf("asked: %+v", got[n:])
+	}
+}
