@@ -79,6 +79,12 @@ function! s:run() abort
   call s:check('popup', s:popup, ['a: 完治', 's: 関知'])
   call s:check('popup choice', getline(1), '関知')
 
+  " The annotation of the candidate shown.
+  %delete _
+  let s:popup = []
+  call feedkeys("i\<C-j>Chuushaku \<Cmd>let s:popup = s:popup_lines()\<CR>\<C-j>\<Esc>", 'xt')
+  call s:check('annotation', [s:popup, getline(1), s:popup_lines()], [['note'], '注釈', []])
+
   " With a border (goda_skk#popup#config()), counted to fit it: three rows
   " under the cursor take the two candidates, not with the border.
   call goda_skk#popup#config(#{opts: has('nvim') ? #{border: 'single'} : #{border: []}})

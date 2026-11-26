@@ -279,7 +279,8 @@ CANDIDATES POPUP                                              *goda-skk-popup*
 
 The candidates after ShowCandidatesCount (|goda-skk-config|) are listed in a
 popup under the cursor (above it when there is no room), or over the command
-line.  It has no border by default.
+line.  It has no border by default.  Before them, the popup shows the
+annotation of the candidate shown, if it has one (ShowAnnotation).
 
 goda_skk#popup#config({config})                      *goda_skk#popup#config()*
 		{config} is a dictionary:
@@ -431,6 +432,11 @@ SahenConvert		Convert a reading with okurigana of a suru-verb with
 			|goda-skk-karukan| converts it with OkuriAri.  The
 			candidates come after the others, and the one
 			confirmed is learned with okurigana.
+
+ShowAnnotation		Show the annotations of the candidates while
+			converting (true): that of the candidate shown one
+			by one in the popup (|goda-skk-popup|), and those of
+			the list after their candidates ("s: 完治;cure").
 
 The fields that default to true, the markers and ShowCandidatesCount are
 pointers: `ImmediatelyCancel: new(false)`, `MarkerHenkan: new("")`,

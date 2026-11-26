@@ -341,8 +341,35 @@ func showCandidates(c *Context) {
 	keys := []rune(c.cfg.SelectCandidateKeys)
 	c.popup = c.popup[:0]
 	for i := 0; i < len(keys) && s.index+i < len(s.candidates); i++ {
-		c.popup = append(c.popup, fmt.Sprintf("%c: %s", keys[i], candidateText(s.candidates[s.index+i], s.affix)))
+		cand := s.candidates[s.index+i]
+		line := fmt.Sprintf("%c: %s", keys[i], candidateText(cand, s.affix))
+		if note := annotation(c, cand); note != "" {
+			line += ";" + note
+		}
+		c.popup = append(c.popup, line)
 	}
+}
+
+// showAnnotation shows the annotation of the candidate shown one by one,
+// if it has one.
+func showAnnotation(c *Context) {
+	s := &c.state
+	if s.index < 0 || s.index >= len(s.candidates) {
+		return
+	}
+	if note := annotation(c, s.candidates[s.index]); note != "" {
+		c.popup = []string{note}
+	}
+}
+
+// annotation is the annotation of cand to show ("" with ShowAnnotation
+// false).
+func annotation(c *Context, cand string) string {
+	if !*c.cfg.ShowAnnotation {
+		return ""
+	}
+	_, note := CandidateWord(cand)
+	return note
 }
 
 // henkanInput is a key typed while choosing: a key of the list chooses,

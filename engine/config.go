@@ -76,6 +76,10 @@ type Config struct {
 	// ("べんきょうs" of "BenkyouSuru") with the candidates of its stem
 	// without okurigana (勉強), from the dictionary files (default true).
 	SahenConvert *bool
+	// ShowAnnotation shows the annotations of the candidates while
+	// converting: that of the candidate shown in the popup, and those of
+	// the list after their candidates (default true).
+	ShowAnnotation *bool
 }
 
 // Defaults is the default configuration.
@@ -121,7 +125,7 @@ func (c Config) fill() (Config, error) {
 	if utf8.RuneCountInString(c.SelectCandidateKeys) != 7 || len(keys) != 7 {
 		return c, fmt.Errorf("SelectCandidateKeys must be 7 distinct characters: %q", c.SelectCandidateKeys)
 	}
-	for _, p := range []**bool{&c.ImmediatelyCancel, &c.ImmediatelyOkuriConvert, &c.SetUndoPoint, &c.SahenConvert} {
+	for _, p := range []**bool{&c.ImmediatelyCancel, &c.ImmediatelyOkuriConvert, &c.SetUndoPoint, &c.SahenConvert, &c.ShowAnnotation} {
 		if *p == nil {
 			*p = new(true)
 		}

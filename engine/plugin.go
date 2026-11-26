@@ -323,11 +323,15 @@ func (p *Plugin) run(ctx context.Context, h sdk.Host, fn string, keys []string, 
 			f(c, "")
 		}
 	}
-	if s := &c.state; s.kind == stateHenkan && s.index >= *c.cfg.ShowCandidatesCount &&
-		len(c.popup) == 0 && c.register == nil {
+	if s := &c.state; s.kind == stateHenkan && len(c.popup) == 0 && c.register == nil {
 		// Still choosing (a key not of the page, say): the list stays
-		// (#14 of skkeleton.nvim).
-		showCandidates(c)
+		// (#14 of skkeleton.nvim). Or the annotation of the candidate
+		// shown one by one.
+		if s.index >= *c.cfg.ShowCandidatesCount {
+			showCandidates(c)
+		} else {
+			showAnnotation(c)
+		}
 	}
 	out := c.output()
 	if out == "" && before != c.mode {
