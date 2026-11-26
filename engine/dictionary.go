@@ -214,6 +214,25 @@ func (l *library) lookup(ctx context.Context, typ HenkanType, word string, befor
 // lookupOkuri is lookup with the okurigana typed of a reading with
 // okurigana, for an OkuriDictionary ("": unknown).
 func (l *library) lookupOkuri(ctx context.Context, typ HenkanType, word, okuri string, before func() string) []string {
+	return l.lookupWith(ctx, typ, word, okuri, false, before)
+}
+
+// lookupBlocks is lookup of a reading with okurigana typed with okuri for
+// the okuri blocks only (see blockDictionary): the other dictionaries are
+// looked up as without it. The completion splits a reading every way, at
+// every key: an OkuriDictionary (karukan) would be asked for each.
+func (l *library) lookupBlocks(ctx context.Context, word, okuri string) []string {
+	return l.lookupWith(ctx, OkuriAri, word, okuri, true, nil)
+}
+
+// lookupWith is lookupOkuri, okuri for the okuri blocks only with
+// blocksOnly.
+func (l *library) lookupWith(ctx context.Context, typ HenkanType, word, okuri string, blocksOnly bool, before func() string) []string {
+	// typed: the okurigana for the dictionaries that convert with it.
+	typed := okuri
+	if blocksOnly {
+		typed = ""
+	}
 	if l.user != nil {
 		l.user.reload()
 	}
@@ -272,7 +291,7 @@ func (l *library) lookupOkuri(ctx context.Context, typ HenkanType, word, okuri s
 			find = func(ctx context.Context, typ HenkanType, w string) ([]string, error) {
 				o := ""
 				if typ == OkuriAri {
-					o = okuri
+					o = typed
 				}
 				cs, s, err := sd.LookupSure(ctx, typ, w, o, beforeText())
 				if w == word {
@@ -280,9 +299,9 @@ func (l *library) lookupOkuri(ctx context.Context, typ HenkanType, word, okuri s
 				}
 				return cs, err
 			}
-		} else if od, ok := d.(OkuriDictionary); ok && typ == OkuriAri && okuri != "" {
+		} else if od, ok := d.(OkuriDictionary); ok && typ == OkuriAri && typed != "" {
 			find = func(ctx context.Context, _ HenkanType, word string) ([]string, error) {
-				return od.LookupOkuri(ctx, word, okuri, beforeText())
+				return od.LookupOkuri(ctx, word, typed, beforeText())
 			}
 		} else if bd, ok := d.(blockDictionary); ok && typ == OkuriAri && okuri != "" {
 			find = func(ctx context.Context, _ HenkanType, word string) ([]string, error) {

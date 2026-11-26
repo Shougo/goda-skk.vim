@@ -123,3 +123,35 @@ func TestCompleteDoneOkuriBlock(t *testing.T) {
 		t.Errorf("user dictionary: %q, want %q", got, want)
 	}
 }
+
+func TestCompleteOkuriBlock(t *testing.T) {
+	// The okuri block of each split first, and no dictionary asked to
+	// convert with the okurigana: the completion splits at every key.
+	var got, okuri, asked []string
+	od := okuriDict{ctxDict{memDict{}, &got}, &okuri}
+	sd := Prefer(sureDict{memDict{}, &asked})
+	dict := memDict{ari: map[string][]string{"いk": {"行", "生"}}}
+	s := newSim(t, Config{Dictionaries: []Dictionary{dict, od, sd}})
+	s.p.lib.register(OkuriAri, "いk", "き", "生")
+	s.p.lib.register(OkuriAri, "いk", "く", "行")
+	ctx := context.Background()
+	for _, tc := range []struct{ keys, want string }{
+		{"Iku", "行"},
+		{"<c-g>Iki", "生"},
+	} {
+		s.typ(tc.keys)
+		r, _ := s.p.Reading()
+		oc := s.p.CompleteOkuri(ctx, r)
+		if len(oc) == 0 || oc[0].Candidate != tc.want {
+			t.Errorf("%q: %+v, want %q first", tc.keys, oc, tc.want)
+		}
+	}
+	if len(okuri) != 0 {
+		t.Errorf("LookupOkuri: %q", okuri)
+	}
+	for _, a := range asked {
+		if strings.Count(a, "|") == 3 && strings.Split(a, "|")[2] != "" {
+			t.Errorf("LookupSure with okurigana: %q", a)
+		}
+	}
+}

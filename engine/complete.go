@@ -114,7 +114,8 @@ type OkuriCompletion struct {
 }
 
 // CompleteOkuri returns the candidates with okurigana of r, for each way
-// to split it, the longest stem first.
+// to split it, the longest stem first; those of the okuri block of the
+// okurigana (see lookupOkuri of jisyo) first.
 func (p *Plugin) CompleteOkuri(ctx context.Context, r Reading) []OkuriCompletion {
 	kana := []rune(r.Kana)
 	var out []OkuriCompletion
@@ -125,7 +126,7 @@ func (p *Plugin) CompleteOkuri(ctx context.Context, r Reading) []OkuriCompletion
 		if word == stem {
 			continue
 		}
-		for _, c := range p.lib.lookup(ctx, OkuriAri, word, nil) {
+		for _, c := range p.lib.lookupBlocks(ctx, word, okuri) {
 			out = append(out, OkuriCompletion{word, c, okuri})
 		}
 	}
