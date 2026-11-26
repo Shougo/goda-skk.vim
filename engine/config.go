@@ -72,6 +72,10 @@ type Config struct {
 	// SetUndoPoint makes a confirmed conversion a step of undo (default
 	// true).
 	SetUndoPoint *bool
+	// SahenConvert converts a reading with okurigana of a suru-verb
+	// ("べんきょうs" of "BenkyouSuru") with the candidates of its stem
+	// without okurigana (勉強), from the dictionary files (default true).
+	SahenConvert *bool
 }
 
 // Defaults is the default configuration.
@@ -117,7 +121,7 @@ func (c Config) fill() (Config, error) {
 	if utf8.RuneCountInString(c.SelectCandidateKeys) != 7 || len(keys) != 7 {
 		return c, fmt.Errorf("SelectCandidateKeys must be 7 distinct characters: %q", c.SelectCandidateKeys)
 	}
-	for _, p := range []**bool{&c.ImmediatelyCancel, &c.ImmediatelyOkuriConvert, &c.SetUndoPoint} {
+	for _, p := range []**bool{&c.ImmediatelyCancel, &c.ImmediatelyOkuriConvert, &c.SetUndoPoint, &c.SahenConvert} {
 		if *p == nil {
 			*p = new(true)
 		}

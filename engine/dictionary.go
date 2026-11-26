@@ -133,6 +133,8 @@ type library struct {
 	logf  func(format string, args ...any)
 	// maxLearn: a longer reading is not learned (0: no limit).
 	maxLearn int
+	// sahen: Config.SahenConvert.
+	sahen bool
 
 	mu sync.Mutex
 	// unlearned are the words of the candidates (candidateWord) that only
@@ -331,6 +333,9 @@ func (l *library) lookupWith(ctx context.Context, typ HenkanType, word, okuri st
 		add(cs, opt.noLearn)
 		prefer(cs, opt, sure)
 	}
+	if stem, ok := sahenStem(typ, word, okuri); ok && l.sahen {
+		add(l.lookupSahen(ctx, stem), false)
+	}
 	if i, ok := seen[preferred]; ok && i > 0 {
 		c := out[i]
 		copy(out[1:i+1], out[:i])
@@ -440,6 +445,41 @@ func (l *library) purge(typ HenkanType, word, candidate string) {
 	if l.user != nil {
 		l.user.Purge(typ, word, candidate)
 	}
+}
+
+// sahenStem is the stem of a reading with okurigana of a suru-verb: the
+// reading without its "s" ("べんきょう" of "べんきょうs"), of okurigana of
+// the sa row (する, し, さ, せ). A stem of one kana is no verb noun (かs is
+// 貸す, not 蚊す).
+func sahenStem(typ HenkanType, word, okuri string) (string, bool) {
+	stem, ok := strings.CutSuffix(word, "s")
+	if typ != OkuriAri || !ok || utf8.RuneCountInString(stem) < 2 ||
+		strings.ContainsFunc(stem, func(r rune) bool { return r < utf8.RuneSelf }) {
+		return "", false
+	}
+	switch r, _ := utf8.DecodeRuneInString(okuri); r {
+	case 'さ', 'し', 'す', 'せ':
+		return stem, true
+	}
+	return "", false
+}
+
+// lookupSahen returns the candidates without okurigana of the stem of a
+// suru-verb, those of the user dictionary and the dictionary files (see
+// blockDictionary) only: the others (karukan, Google) convert the reading
+// with its okurigana, or would be asked at each conversion of one.
+func (l *library) lookupSahen(ctx context.Context, stem string) []string {
+	var out []string
+	for _, d := range l.all() {
+		d, _ := unwrap(d)
+		if _, ok := d.(blockDictionary); !ok {
+			continue
+		}
+		cs, err := d.Lookup(ctx, OkuriNasi, stem)
+		l.report(err)
+		out = append(out, cs...)
+	}
+	return out
 }
 
 var digits = regexp.MustCompile(`[0-9]+`)

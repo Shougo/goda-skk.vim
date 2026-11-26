@@ -421,6 +421,17 @@ MaxLearnLength		Readings longer than this many characters are not
 
 SetUndoPoint		A conversion confirmed is a step of undo (true).
 
+SahenConvert		Convert a reading with okurigana of a suru-verb with
+			the candidates of its stem (true): "BenkyouSuru"
+			looks up "べんきょう" for "べんきょうs", which no
+			dictionary has, when the okurigana is of the sa row
+			(さ, し, す, せ) and the stem has two kana or more.
+			Only the user dictionary and the dictionary files
+			(|goda-skk-dictionaries|) are looked up for it;
+			|goda-skk-karukan| converts it with OkuriAri.  The
+			candidates come after the others, and the one
+			confirmed is learned with okurigana.
+
 The fields that default to true, the markers and ShowCandidatesCount are
 pointers: `ImmediatelyCancel: new(false)`, `MarkerHenkan: new("")`,
 `ShowCandidatesCount: new(0)`.
