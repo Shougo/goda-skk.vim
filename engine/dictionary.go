@@ -38,6 +38,16 @@ type ContextDictionary interface {
 	LookupContext(ctx context.Context, typ HenkanType, word, before string) ([]string, error)
 }
 
+// SureDictionary is a dictionary that says, with its candidates, whether it
+// is sure of the first: wrapped with Prefer, LookupSure is called instead of
+// the other lookups (okuri is the okurigana typed of a reading with
+// okurigana, "" for one without), and its first candidate comes first only
+// when it is sure (dictionary/karukan: by the scores of the model).
+type SureDictionary interface {
+	Dictionary
+	LookupSure(ctx context.Context, typ HenkanType, word, okuri, before string) (candidates []string, sure bool, err error)
+}
+
 // OkuriDictionary is a ContextDictionary that also converts a reading with
 // okurigana knowing the okurigana typed ("い" of "おおi"): LookupOkuri is
 // called instead of LookupContext for one, with okuri.
@@ -76,8 +86,9 @@ func Fallback(d Dictionary) Dictionary {
 // the reading is known: dictionary/karukan tells the words of a reading by
 // it ("汽車" after "駅のホームに", "掻" of "かk" after "恥を"), where the user
 // dictionary puts the one confirmed last. Without the text, the order is
-// theirs. Fallback(d) is looked up only when they give no candidates, so
-// it never comes first.
+// theirs, and so it is when d, a SureDictionary, is not sure of its first.
+// Fallback(d) is looked up only when they give no candidates, so it never
+// comes first.
 func Prefer(d Dictionary) Dictionary {
 	o := wrap(d)
 	o.prefer = true
@@ -236,8 +247,8 @@ func (l *library) lookupOkuri(ctx context.Context, typ HenkanType, word, okuri s
 	}
 	// preferred: the first word of a Prefer dictionary, with the text.
 	preferred := ""
-	prefer := func(cs []string, opt option) {
-		if opt.prefer && preferred == "" && len(cs) > 0 && beforeText() != "" {
+	prefer := func(cs []string, opt option, sure bool) {
+		if opt.prefer && sure && preferred == "" && len(cs) > 0 && beforeText() != "" {
 			preferred = candidateWord(normalizeCandidate(cs[0]))
 		}
 	}
@@ -248,7 +259,21 @@ func (l *library) lookupOkuri(ctx context.Context, typ HenkanType, word, okuri s
 			continue
 		}
 		find := d.Lookup
-		if od, ok := d.(OkuriDictionary); ok && typ == OkuriAri && okuri != "" {
+		// sure: the dictionary is sure of its first candidate for word.
+		sure := true
+		if sd, ok := d.(SureDictionary); ok && opt.prefer {
+			find = func(ctx context.Context, typ HenkanType, w string) ([]string, error) {
+				o := ""
+				if typ == OkuriAri {
+					o = okuri
+				}
+				cs, s, err := sd.LookupSure(ctx, typ, w, o, beforeText())
+				if w == word {
+					sure = s
+				}
+				return cs, err
+			}
+		} else if od, ok := d.(OkuriDictionary); ok && typ == OkuriAri && okuri != "" {
 			find = func(ctx context.Context, _ HenkanType, word string) ([]string, error) {
 				return od.LookupOkuri(ctx, word, okuri, beforeText())
 			}
@@ -268,13 +293,13 @@ func (l *library) lookupOkuri(ctx context.Context, typ HenkanType, word, okuri s
 				cs = append(cs, convertNumber(p, word))
 			}
 			add(cs, opt.noLearn)
-			prefer(cs, opt)
+			prefer(cs, opt, sure)
 			continue
 		}
 		cs, err := find(ctx, typ, word)
 		l.report(err)
 		add(cs, opt.noLearn)
-		prefer(cs, opt)
+		prefer(cs, opt, sure)
 	}
 	if i, ok := seen[preferred]; ok && i > 0 {
 		c := out[i]

@@ -74,6 +74,12 @@ type Params struct {
 	// text after ("大いに") is not typed yet. A conversion with okurigana
 	// asks the server then.
 	OkuriAri bool
+	// Margin is how much the score of the model for the first candidate
+	// must exceed that of the second for engine.Prefer to put it first
+	// (default 2; new(0.0) for always). Of 37 words of the same reading
+	// after a text that tells them, the first is right for 32: with 2, 26
+	// come first and 1 of them is wrong; with 0, 37 and 5.
+	Margin *float64
 	// Timeout bounds a request (default 1 second).
 	Timeout time.Duration
 	// Client makes the requests (default http.DefaultClient).
@@ -104,6 +110,9 @@ func New(p Params) *Dictionary {
 		}
 		p.ContextLength = &n
 	}
+	if p.Margin == nil {
+		p.Margin = new(2.0)
+	}
 	if p.Timeout <= 0 {
 		p.Timeout = time.Second
 	}
@@ -123,6 +132,28 @@ type request struct {
 
 type response struct {
 	Candidates []string `json:"candidates"`
+	// CandidateTokens have the scores of the candidates (log
+	// probabilities), when the server gives them.
+	CandidateTokens []struct {
+		Text  string  `json:"text"`
+		Score float64 `json:"score"`
+	} `json:"candidate_tokens"`
+}
+
+// scored is a candidate with the score of the model, when known.
+type scored struct {
+	text  string
+	score float64
+	known bool
+}
+
+// texts are the candidates of cs.
+func texts(cs []scored) []string {
+	var out []string
+	for _, c := range cs {
+		out = append(out, c.text)
+	}
+	return out
 }
 
 // Lookup asks for the candidates of word, as one phrase.
@@ -138,12 +169,36 @@ func (d *Dictionary) LookupContext(ctx context.Context, typ engine.HenkanType, w
 	if typ != engine.OkuriNasi || word == "" || strings.Contains(word, "#") {
 		return nil, nil
 	}
-	return d.convert(ctx, word, before)
+	cs, err := d.convert(ctx, word, before)
+	return texts(cs), err
 }
 
 // LookupOkuri asks for the candidates of the stem of word with okuri, the
 // okurigana typed, after before (Params.OkuriAri).
 func (d *Dictionary) LookupOkuri(ctx context.Context, word, okuri, before string) ([]string, error) {
+	cs, err := d.stems(ctx, word, okuri, before)
+	return texts(cs), err
+}
+
+// LookupSure is LookupContext or LookupOkuri, and whether the score of the
+// first candidate exceeds that of the second by Margin (engine.Prefer).
+func (d *Dictionary) LookupSure(ctx context.Context, typ engine.HenkanType, word, okuri, before string) ([]string, bool, error) {
+	var cs []scored
+	var err error
+	switch {
+	case typ == engine.OkuriAri:
+		cs, err = d.stems(ctx, word, okuri, before)
+	case word != "" && !strings.Contains(word, "#"):
+		cs, err = d.convert(ctx, word, before)
+	}
+	sure := len(cs) < 2 || !cs[0].known || !cs[1].known ||
+		cs[0].score-cs[1].score >= *d.p.Margin
+	return texts(cs), sure, err
+}
+
+// stems are the stems of the candidates of the stem of word with okuri,
+// after before (Params.OkuriAri), each with the score of its first one.
+func (d *Dictionary) stems(ctx context.Context, word, okuri, before string) ([]scored, error) {
 	if !d.p.OkuriAri || okuri == "" || strings.Contains(word, "#") {
 		return nil, nil
 	}
@@ -153,11 +208,12 @@ func (d *Dictionary) LookupOkuri(ctx context.Context, word, okuri, before string
 		return nil, nil
 	}
 	cs, err := d.convert(ctx, stem+okuri, before)
-	var out []string
+	var out []scored
 	for _, c := range cs {
-		s, ok := strings.CutSuffix(c, okuri)
-		if ok && s != stem && isStem(s) && !slices.Contains(out, s) {
-			out = append(out, s)
+		s, ok := strings.CutSuffix(c.text, okuri)
+		if ok && s != stem && isStem(s) && !slices.ContainsFunc(out, func(o scored) bool { return o.text == s }) {
+			c.text = s
+			out = append(out, c)
 		}
 	}
 	return out, err
@@ -180,7 +236,7 @@ func isStem(s string) bool {
 }
 
 // convert asks the server for the candidates of reading after before.
-func (d *Dictionary) convert(ctx context.Context, word, before string) ([]string, error) {
+func (d *Dictionary) convert(ctx context.Context, word, before string) ([]scored, error) {
 	if d.resting() {
 		return nil, nil
 	}
@@ -228,11 +284,18 @@ func (d *Dictionary) convert(ctx context.Context, word, before string) ([]string
 	if err := json.Unmarshal(b, &r); err != nil {
 		return nil, fmt.Errorf("karukan %s: %w", d.p.URL, err)
 	}
-	var cs []string
+	scores := map[string]float64{}
+	for _, t := range r.CandidateTokens {
+		if _, ok := scores[t.Text]; !ok {
+			scores[t.Text] = t.Score
+		}
+	}
+	var cs []scored
 	for _, c := range r.Candidates {
 		// The reading itself is no conversion.
 		if c != "" && c != word {
-			cs = append(cs, c)
+			s, ok := scores[c]
+			cs = append(cs, scored{text: c, score: s, known: ok})
 		}
 	}
 	return cs, nil
@@ -280,4 +343,7 @@ func (d *Dictionary) fail() {
 	d.failedAt = time.Now()
 }
 
-var _ engine.OkuriDictionary = (*Dictionary)(nil)
+var (
+	_ engine.OkuriDictionary = (*Dictionary)(nil)
+	_ engine.SureDictionary  = (*Dictionary)(nil)
+)

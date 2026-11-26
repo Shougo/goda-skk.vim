@@ -507,6 +507,10 @@ karukan.New({params})                                   *goda-skk-karukan*
 				before tells "書く" from "掻く"; the text
 				after ("大いに") is not typed yet.  Each
 				conversion with okurigana asks the server
+		Margin		how much the score of the model for the
+				first candidate must exceed that of the
+				second for |goda-skk-prefer| to put it
+				first (default 2; new(0.0) for always)
 		Timeout		for a request (default time.Second)
 		A request not answered in time gives nothing, as does a
 		server still loading its models, and a server that cannot
@@ -582,8 +586,11 @@ engine.Prefer({dictionary})                              *goda-skk-prefer*
 		of a reading by it ("汽車" of "きしゃ" after "駅のホームに",
 		"掻" of "かk" after "恥を", with OkuriAri), where the
 		user dictionary puts the one confirmed last.  Without the
-		text, the order is theirs.  Not with Fallback: it is
-		looked up only when they give no candidates.
+		text, the order is theirs, and so it is when {dictionary}
+		is not sure of its first (an engine.SureDictionary,
+		|goda-skk-context|: the Margin of |goda-skk-karukan|).
+		Not with Fallback: it is looked up only when they give no
+		candidates.
 
 They wrap any dictionary, in any order: >go
 
@@ -636,6 +643,13 @@ it is called instead of LookupContext for a reading with okurigana
 "いっt"). >go
 	LookupOkuri(ctx context.Context, word, okuri, before string)
 	([]string, error)
+<
+A dictionary that also has this method is an engine.SureDictionary: wrapped
+with |goda-skk-prefer|, it is called instead of the others, and says with
+its candidates whether it is sure of the first (okuri is "" for a reading
+without okurigana). >go
+	LookupSure(ctx context.Context, typ engine.HenkanType,
+	word, okuri, before string) ([]string, bool, error)
 <
 
 Readings with digits look up "#" in the dictionaries (the reading "1かい"

@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"slices"
+	"strings"
 	"sync"
 	"testing"
 	"time"
@@ -254,5 +255,55 @@ func TestLookupOkuri(t *testing.T) {
 	d.LookupContext(ctx, engine.OkuriAri, "おおi", "人が")
 	if len(got) != n {
 		t.Errorf("asked: %+v", got[n:])
+	}
+}
+
+func TestLookupSure(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		var req request
+		json.NewDecoder(r.Body).Decode(&req)
+		switch req.Hiragana {
+		case "きしゃ": // sure after 駅
+			if strings.Contains(req.Context, "駅") {
+				w.Write([]byte(`{"candidates":["汽車","記者"],"candidate_tokens":[{"text":"汽車","score":-0.1},{"text":"記者","score":-3.9}]}`))
+			} else {
+				w.Write([]byte(`{"candidates":["記者","汽車"],"candidate_tokens":[{"text":"記者","score":-1.0},{"text":"汽車","score":-1.5}]}`))
+			}
+		case "かく": // the stems: 掻 -0.5, 書 -3.0 (かく is no stem)
+			w.Write([]byte(`{"candidates":["かく","掻く","書く"],"candidate_tokens":[{"text":"かく","score":-0.2},{"text":"掻く","score":-0.5},{"text":"書く","score":-3.0}]}`))
+		case "こうか": // an older server: no scores
+			w.Write([]byte(`{"candidates":["硬貨","効果"]}`))
+		case "ひとつ":
+			w.Write([]byte(`{"candidates":["一つ"],"candidate_tokens":[{"text":"一つ","score":-0.1}]}`))
+		}
+	}))
+	defer srv.Close()
+	ctx := context.Background()
+	d := New(Params{URL: srv.URL, OkuriAri: true})
+	for _, c := range []struct {
+		typ                 engine.HenkanType
+		word, okuri, before string
+		want                []string
+		sure                bool
+	}{
+		{engine.OkuriNasi, "きしゃ", "", "駅の", []string{"汽車", "記者"}, true},    // 3.8
+		{engine.OkuriNasi, "きしゃ", "", "新聞社の", []string{"記者", "汽車"}, false}, // 0.5
+		{engine.OkuriAri, "かk", "く", "恥を", []string{"掻", "書"}, true},       // 2.5
+		{engine.OkuriNasi, "こうか", "", "十円", []string{"硬貨", "効果"}, true},    // no scores
+		{engine.OkuriNasi, "ひとつ", "", "あと", []string{"一つ"}, true},          // one
+	} {
+		cs, sure, err := d.LookupSure(ctx, c.typ, c.word, c.okuri, c.before)
+		if err != nil || !slices.Equal(cs, c.want) || sure != c.sure {
+			t.Errorf("%s %s: %q %v %v, want %q %v", c.before, c.word, cs, sure, err, c.want, c.sure)
+		}
+	}
+	// Margin: 3.0 is more than 2.5.
+	strict := New(Params{URL: srv.URL, OkuriAri: true, Margin: new(3.0)})
+	if _, sure, _ := strict.LookupSure(ctx, engine.OkuriAri, "かk", "く", "恥を"); sure {
+		t.Errorf("margin 3: sure")
+	}
+	// Without OkuriAri, nothing for a reading with okurigana.
+	if cs, _, _ := New(Params{URL: srv.URL}).LookupSure(ctx, engine.OkuriAri, "かk", "く", "恥を"); cs != nil {
+		t.Errorf("not OkuriAri: %q", cs)
 	}
 }

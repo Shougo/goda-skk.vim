@@ -318,3 +318,55 @@ func TestPrefer(t *testing.T) {
 		t.Errorf("learned: %q", got)
 	}
 }
+
+// sureDict is a SureDictionary sure of its first after "駅".
+type sureDict struct {
+	memDict
+	asked *[]string
+}
+
+func (d sureDict) LookupSure(_ context.Context, typ HenkanType, word, okuri, before string) ([]string, bool, error) {
+	*d.asked = append(*d.asked, string(typ)+"|"+word+"|"+okuri+"|"+before)
+	if typ == OkuriAri {
+		return []string{"掻", "書"}, strings.Contains(before, "恥"), nil
+	}
+	return []string{"汽車", "記者"}, strings.Contains(before, "駅"), nil
+}
+
+func TestPreferSure(t *testing.T) {
+	jisyo := memDict{
+		nasi: map[string][]string{"きしゃ": {"記者", "汽車"}},
+		ari:  map[string][]string{"かk": {"書", "掻"}},
+	}
+	var asked []string
+	d := Prefer(sureDict{asked: &asked})
+	for _, c := range []struct {
+		line       string
+		typ        HenkanType
+		word, okur string
+		want       string
+	}{
+		// Sure: first. Not sure: the order learned.
+		{"駅のホームに", OkuriNasi, "きしゃ", "", "汽車"},
+		{"新聞社の", OkuriNasi, "きしゃ", "", "記者"},
+		{"恥を", OkuriAri, "かk", "く", "掻"},
+		{"記録を", OkuriAri, "かk", "く", "書"},
+	} {
+		s := newSim(t, Config{Dictionaries: []Dictionary{jisyo, d}})
+		got := s.p.lib.lookupOkuri(context.Background(), c.typ, c.word, c.okur, func() string { return c.line })
+		if got[0] != c.want {
+			t.Errorf("%s %s: %q, want %q first", c.line, c.word, got, c.want)
+		}
+	}
+	want := []string{"okurinasi|きしゃ||駅のホームに", "okurinasi|きしゃ||新聞社の", "okuriari|かk|く|恥を", "okuriari|かk|く|記録を"}
+	if !slices.Equal(asked, want) {
+		t.Errorf("asked: %q, want %q", asked, want)
+	}
+	// Not Prefer: LookupSure is not called.
+	asked = nil
+	s := newSim(t, Config{Dictionaries: []Dictionary{jisyo, sureDict{asked: &asked}}})
+	s.p.lib.lookup(context.Background(), OkuriNasi, "きしゃ", func() string { return "駅" })
+	if len(asked) != 0 {
+		t.Errorf("asked without Prefer: %q", asked)
+	}
+}
