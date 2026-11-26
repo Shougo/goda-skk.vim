@@ -114,7 +114,7 @@ func TestFallback(t *testing.T) {
 		t.Errorf("digits: %v", cs)
 	}
 	// The user dictionary is before it.
-	s.p.lib.register(OkuriNasi, "すいとう", "出納")
+	s.p.lib.register(OkuriNasi, "すいとう", "", "出納")
 	if cs := s.p.lib.lookup(ctx, OkuriNasi, "すいとう", nil); !slices.Equal(cs, []string{"出納"}) {
 		t.Errorf("after the user dictionary: %v", cs)
 	}

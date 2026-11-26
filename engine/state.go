@@ -118,6 +118,15 @@ func candidateText(c string, a affix) string {
 	return c
 }
 
+// okuri is the okurigana typed of a reading with okurigana ("" for one
+// without).
+func (s *state) okuri() string {
+	if s.mode.henkanType() != OkuriAri {
+		return ""
+	}
+	return s.okuriFeed
+}
+
 // bareText is the pre-edit of the state without the markers: what was
 // typed of it.
 func (s *state) bareText() string {

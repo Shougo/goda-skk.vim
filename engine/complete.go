@@ -138,10 +138,15 @@ func (p *Plugin) Lookup(ctx context.Context, typ HenkanType, word string) []stri
 }
 
 // CompleteDone is told that the completion inserted inserted, candidate of
-// word: it is learned, the reading typed is gone, and kakuteiUndo can take
-// it back.
+// word: it is learned (with the okurigana inserted after it, for a reading
+// with okurigana), the reading typed is gone, and kakuteiUndo can take it
+// back.
 func (p *Plugin) CompleteDone(ctx context.Context, h sdk.Host, typ HenkanType, word, candidate, inserted string) {
-	p.lib.learn(typ, word, candidate)
+	okuri := ""
+	if typ == OkuriAri {
+		okuri = strings.TrimPrefix(inserted, candidateText(candidate, affixNone))
+	}
+	p.lib.learn(typ, word, okuri, candidate)
 	p.mu.Lock()
 	c := p.c
 	c.lastCandidate = candidateRef{typ, word, candidate}

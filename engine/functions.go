@@ -284,11 +284,7 @@ func henkanFirst(c *Context, key string) {
 			s.affix = affixSuffix
 		}
 	}
-	okuri := ""
-	if s.mode.henkanType() == OkuriAri {
-		okuri = s.okuriFeed
-	}
-	s.candidates = c.lib.lookupOkuri(c.ctx, s.mode.henkanType(), s.word, okuri, c.before)
+	s.candidates = c.lib.lookupOkuri(c.ctx, s.mode.henkanType(), s.word, s.okuri(), c.before)
 	henkanForward(c, "")
 }
 
@@ -419,7 +415,7 @@ func registerDone(c *Context, word string) {
 	c.state = r.state
 	c.state.candidates, c.state.index = []string{word}, 0
 	// Registered even past MaxLearnLength, which kakutei keeps to.
-	c.lib.register(c.state.mode.henkanType(), c.state.word, word)
+	c.lib.register(c.state.mode.henkanType(), c.state.word, c.state.okuri(), word)
 	kakutei(c)
 	// Taking it back would only choose the word just registered.
 	c.invalidateKakutei()
@@ -438,7 +434,7 @@ func kakutei(c *Context) {
 			cand = s.candidates[s.index]
 		}
 		if cand != "" {
-			c.lib.learn(s.mode.henkanType(), s.word, cand)
+			c.lib.learn(s.mode.henkanType(), s.word, s.okuri(), cand)
 			c.lastCandidate = candidateRef{s.mode.henkanType(), s.word, cand}
 		}
 		ret := candidateText(cand, s.affix) + s.converter.apply(s.okuriFeed)
@@ -593,7 +589,7 @@ func toKana(c *Context, conv converter, mode string) {
 	if s.converter != conv {
 		result = conv.apply(kana)
 		if c.cfg.RegisterConvertResult {
-			c.lib.learn(OkuriNasi, kana, result)
+			c.lib.learn(OkuriNasi, kana, "", result)
 			c.lastCandidate = candidateRef{OkuriNasi, kana, result}
 		}
 	}

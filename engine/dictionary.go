@@ -119,6 +119,13 @@ func unwrap(d Dictionary) (Dictionary, option) {
 	return d, option{}
 }
 
+// blockDictionary is a dictionary in the SKK format, whose entries with
+// okurigana may have okuri blocks: lookupOkuri is called for a reading with
+// okurigana, with the okurigana typed.
+type blockDictionary interface {
+	lookupOkuri(ctx context.Context, word, okuri string) ([]string, error)
+}
+
 // library looks the dictionaries up in order, merging their candidates.
 type library struct {
 	user  *UserDictionary
@@ -277,6 +284,10 @@ func (l *library) lookupOkuri(ctx context.Context, typ HenkanType, word, okuri s
 			find = func(ctx context.Context, _ HenkanType, word string) ([]string, error) {
 				return od.LookupOkuri(ctx, word, okuri, beforeText())
 			}
+		} else if bd, ok := d.(blockDictionary); ok && typ == OkuriAri && okuri != "" {
+			find = func(ctx context.Context, _ HenkanType, word string) ([]string, error) {
+				return bd.lookupOkuri(ctx, word, okuri)
+			}
 		} else if cd, ok := d.(ContextDictionary); ok {
 			find = func(ctx context.Context, typ HenkanType, word string) ([]string, error) {
 				return cd.LookupContext(ctx, typ, word, beforeText())
@@ -385,22 +396,24 @@ func (l *library) report(err error) {
 }
 
 // learn puts candidate first for word in the user dictionary, unless word
-// is longer than maxLearn or only NoLearn dictionaries gave candidate.
-func (l *library) learn(typ HenkanType, word, candidate string) {
+// is longer than maxLearn or only NoLearn dictionaries gave candidate. okuri
+// is the okurigana typed of a reading with okurigana, for its okuri block
+// ("": none).
+func (l *library) learn(typ HenkanType, word, okuri, candidate string) {
 	if l.maxLearn > 0 && utf8.RuneCountInString(word) > l.maxLearn {
 		return
 	}
 	if l.isUnlearned(typ, word, candidateWord(normalizeCandidate(candidate))) {
 		return
 	}
-	l.register(typ, word, candidate)
+	l.register(typ, word, okuri, candidate)
 }
 
 // register puts candidate first for word in the user dictionary, whatever
 // the length of word: a word registered is asked for.
-func (l *library) register(typ HenkanType, word, candidate string) {
+func (l *library) register(typ HenkanType, word, okuri, candidate string) {
 	if l.user != nil && candidate != "" {
-		l.user.Register(typ, word, normalizeCandidate(candidate))
+		l.user.register(typ, word, okuri, normalizeCandidate(candidate))
 	}
 }
 

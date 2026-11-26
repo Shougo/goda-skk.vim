@@ -92,8 +92,8 @@ func parseJisyo(text string, lines bool) *jisyo {
 }
 
 // splitCandidates splits "/c1/c2/" into its candidates. In an okuri-ari
-// entry, a block of candidates for an okurigana ("[る/走/]", written by
-// other SKK implementations) is one item.
+// entry, a block of candidates for an okurigana ("[る/走/]", an okuri
+// block: see lookupOkuri) is one item.
 func splitCandidates(s string, okuriAri bool) []string {
 	s = strings.TrimPrefix(s, "/")
 	var out []string
@@ -126,6 +126,111 @@ func (j *jisyo) index() {
 
 func (j *jisyo) lookup(typ HenkanType, word string) []string {
 	return candidates(j.table(typ)[word])
+}
+
+// lookupOkuri is lookup of a reading with okurigana typed with okuri: the
+// candidates of its okuri block (those confirmed with this okurigana, "行"
+// of "[く/行/]" for "IKu") come first.
+func (j *jisyo) lookupOkuri(word, okuri string) []string {
+	items := j.okuriAri[word]
+	key := okuriKey(okuri)
+	for _, it := range items {
+		if o, block, ok := parseBlock(it); ok && o == key {
+			return blockFirst(candidates(items), block)
+		}
+	}
+	return candidates(items)
+}
+
+// blockFirst is cs with the words of block first, in its order, each once
+// (with an annotation of either).
+func blockFirst(cs, block []string) []string {
+	byWord := map[string]string{}
+	for _, c := range cs {
+		if w := candidateWord(c); byWord[w] == "" {
+			byWord[w] = c
+		}
+	}
+	out := make([]string, 0, len(cs)+len(block))
+	seen := map[string]bool{}
+	for _, c := range append(slices.Clone(block), cs...) {
+		w := candidateWord(c)
+		if seen[w] {
+			continue
+		}
+		seen[w] = true
+		if other, ok := byWord[w]; ok {
+			c = annotated(c, other)
+		}
+		out = append(out, c)
+	}
+	return out
+}
+
+// okuriKey is the okurigana of the okuri block of a conversion typed with
+// okuri: its first kana ("っ" of "ITta"), as other SKK implementations
+// write it.
+func okuriKey(okuri string) string {
+	_, n := utf8.DecodeRuneInString(okuri)
+	return okuri[:n]
+}
+
+// parseBlock splits an okuri block, "[る/走/奔/]", into its okurigana and
+// candidates.
+func parseBlock(item string) (okuri string, cands []string, ok bool) {
+	if !strings.HasPrefix(item, "[") || !strings.HasSuffix(item, "]") {
+		return "", nil, false
+	}
+	okuri, rest, ok := strings.Cut(item[1:len(item)-1], "/")
+	if !ok || okuri == "" {
+		return "", nil, false
+	}
+	for c := range strings.SplitSeq(rest, "/") {
+		if c != "" {
+			cands = append(cands, c)
+		}
+	}
+	return okuri, cands, true
+}
+
+// formatBlock is the okuri block of okuri with cands.
+func formatBlock(okuri string, cands []string) string {
+	return "[" + okuri + "/" + strings.Join(cands, "/") + "/]"
+}
+
+// withBlock is the items of an entry with candidate first in the okuri
+// block of okuri (a new one last). A candidate with "[" or "]" goes in no
+// block: it would end it.
+func withBlock(items []string, okuri, candidate string) []string {
+	if okuri == "" || strings.ContainsAny(candidate, "[]") {
+		return items
+	}
+	w := candidateWord(candidate)
+	for i, it := range items {
+		if o, block, ok := parseBlock(it); ok && o == okuri {
+			block = slices.DeleteFunc(block, func(c string) bool { return candidateWord(c) == w })
+			items[i] = formatBlock(okuri, append([]string{candidate}, block...))
+			return items
+		}
+	}
+	return append(items, formatBlock(okuri, []string{candidate}))
+}
+
+// withoutInBlocks is the items of an entry without the candidates whose
+// word is w in their okuri blocks, and without the blocks left empty.
+func withoutInBlocks(items []string, w string) []string {
+	out := items[:0]
+	for _, it := range items {
+		if o, block, ok := parseBlock(it); ok {
+			block = slices.DeleteFunc(block, func(c string) bool { return candidateWord(c) == w })
+			if len(block) == 0 {
+				continue
+			}
+			it = formatBlock(o, block)
+		}
+		out = append(out, it)
+	}
+	return out
 }
 
 // candidates are the items of an entry without its okuri blocks (those of
@@ -227,6 +332,13 @@ func (d *Jisyo) Lookup(ctx context.Context, typ HenkanType, word string) ([]stri
 	return d.j.lookup(typ, word), nil
 }
 
+func (d *Jisyo) lookupOkuri(ctx context.Context, word, okuri string) ([]string, error) {
+	if err := d.Init(ctx); err != nil {
+		return nil, err
+	}
+	return d.j.lookupOkuri(word, okuri), nil
+}
+
 func (d *Jisyo) Complete(ctx context.Context, prefix string) ([]Entry, error) {
 	if err := d.Init(ctx); err != nil {
 		return nil, err
@@ -245,8 +357,9 @@ func expandHome(path string) string {
 }
 
 var (
-	_ Dictionary  = (*Jisyo)(nil)
-	_ Initializer = (*Jisyo)(nil)
+	_ Dictionary      = (*Jisyo)(nil)
+	_ Initializer     = (*Jisyo)(nil)
+	_ blockDictionary = (*Jisyo)(nil)
 )
 
 // A candidate with "/" (which separates the candidates) is written

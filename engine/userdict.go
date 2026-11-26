@@ -86,6 +86,12 @@ func (u *UserDictionary) Lookup(_ context.Context, typ HenkanType, word string) 
 	return u.j.lookup(typ, word), nil
 }
 
+func (u *UserDictionary) lookupOkuri(_ context.Context, word, okuri string) ([]string, error) {
+	u.mu.Lock()
+	defer u.mu.Unlock()
+	return u.j.lookupOkuri(word, okuri), nil
+}
+
 func (u *UserDictionary) Complete(_ context.Context, prefix string) ([]Entry, error) {
 	u.mu.Lock()
 	defer u.mu.Unlock()
@@ -96,6 +102,12 @@ func (u *UserDictionary) Complete(_ context.Context, prefix string) ([]Entry, er
 // those of the same word whatever their annotations (see candidateWord),
 // moves word to the top, and writes the file.
 func (u *UserDictionary) Register(typ HenkanType, word, candidate string) {
+	u.register(typ, word, "", candidate)
+}
+
+// register is Register of a conversion typed with okuri (a reading with
+// okurigana): candidate also goes first in its okuri block.
+func (u *UserDictionary) register(typ HenkanType, word, okuri, candidate string) {
 	u.reload()
 	u.mu.Lock()
 	defer u.mu.Unlock()
@@ -105,6 +117,9 @@ func (u *UserDictionary) Register(typ HenkanType, word, candidate string) {
 	old := t[word]
 	w := candidateWord(normalizeCandidate(candidate))
 	cs := append([]string{candidate}, slices.DeleteFunc(slices.Clone(old), func(c string) bool { return candidateWord(c) == w })...)
+	if typ == OkuriAri {
+		cs = withBlock(cs, okuriKey(okuri), candidate)
+	}
 	t[word] = cs
 	if typ == OkuriNasi && old == nil {
 		u.j.index()
@@ -125,8 +140,8 @@ func (u *UserDictionary) recency(word string) (int64, bool) {
 }
 
 // Purge removes candidate from the candidates of word, with those of the
-// same word whatever their annotations (see candidateWord), and writes the
-// file.
+// same word whatever their annotations (see candidateWord), its okuri
+// blocks included, and writes the file.
 func (u *UserDictionary) Purge(typ HenkanType, word, candidate string) {
 	u.reload()
 	u.mu.Lock()
@@ -134,6 +149,7 @@ func (u *UserDictionary) Purge(typ HenkanType, word, candidate string) {
 	t := u.j.table(typ)
 	w := candidateWord(normalizeCandidate(candidate))
 	cs := slices.DeleteFunc(slices.Clone(t[word]), func(c string) bool { return candidateWord(c) == w })
+	cs = withoutInBlocks(cs, w)
 	if len(cs) == 0 {
 		delete(t, word)
 		delete(u.at(typ), word)
@@ -209,4 +225,7 @@ func (u *UserDictionary) log(err error) {
 	}
 }
 
-var _ Dictionary = (*UserDictionary)(nil)
+var (
+	_ Dictionary      = (*UserDictionary)(nil)
+	_ blockDictionary = (*UserDictionary)(nil)
+)

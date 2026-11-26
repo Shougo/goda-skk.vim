@@ -659,6 +659,14 @@ The user dictionary is a file in the SKK format, in UTF-8, read again when
 it changed.  "X" on a candidate removes it from the user dictionary (after
 asking).
 
+A reading with okurigana also learns the candidate for its okurigana, in an
+okuri block as other SKK implementations write it: >
+	いk /行/生/[く/行/]/[き/生/]/
+<
+"IKu" converts to "行く" and "IKi" to "生き", whichever was confirmed last.
+The block is that of the first kana of the okurigana ("っ" of "ITta").  The
+blocks of a dictionary file (|goda-skk-dictionaries|) count too.
+
 ==============================================================================
 COMPLETION                                               *goda-skk-completion*
 
