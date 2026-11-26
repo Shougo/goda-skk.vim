@@ -431,6 +431,8 @@ try
 catch
   call add(s:errors, v:throwpoint . ': ' . v:exception)
 endtry
+" Nothing in the log either: an error in a notification is only there.
+call s:check('log', goda#log(), [])
 call writefile(s:errors + (empty(s:errors) ? ['ok'] : []) + goda#log(), s:result)
 call goda#stop()
 qall!
