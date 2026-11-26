@@ -71,10 +71,23 @@ func Fallback(d Dictionary) Dictionary {
 	return o
 }
 
-// option is a dictionary with the options of NoLearn and Fallback.
+// Prefer returns d whose first candidate comes first, before those of the
+// dictionaries before it and the order they learned, when the text before
+// the reading is known: dictionary/karukan tells the words of a reading by
+// it ("汽車" after "駅のホームに", "掻" of "かk" after "恥を"), where the user
+// dictionary puts the one confirmed last. Without the text, the order is
+// theirs. Fallback(d) is looked up only when they give no candidates, so
+// it never comes first.
+func Prefer(d Dictionary) Dictionary {
+	o := wrap(d)
+	o.prefer = true
+	return o
+}
+
+// option is a dictionary with the options of NoLearn, Fallback and Prefer.
 type option struct {
 	Dictionary
-	noLearn, fallback bool
+	noLearn, fallback, prefer bool
 }
 
 // wrap returns d with its options, NoLearn(Fallback(d)) being one option.
@@ -221,6 +234,13 @@ func (l *library) lookupOkuri(ctx context.Context, typ HenkanType, word, okuri s
 		}
 		return *text
 	}
+	// preferred: the first word of a Prefer dictionary, with the text.
+	preferred := ""
+	prefer := func(cs []string, opt option) {
+		if opt.prefer && preferred == "" && len(cs) > 0 && beforeText() != "" {
+			preferred = candidateWord(normalizeCandidate(cs[0]))
+		}
+	}
 	pattern := numberWord(word)
 	for _, d := range l.all() {
 		d, opt := unwrap(d)
@@ -248,11 +268,18 @@ func (l *library) lookupOkuri(ctx context.Context, typ HenkanType, word, okuri s
 				cs = append(cs, convertNumber(p, word))
 			}
 			add(cs, opt.noLearn)
+			prefer(cs, opt)
 			continue
 		}
 		cs, err := find(ctx, typ, word)
 		l.report(err)
 		add(cs, opt.noLearn)
+		prefer(cs, opt)
+	}
+	if i, ok := seen[preferred]; ok && i > 0 {
+		c := out[i]
+		copy(out[1:i+1], out[:i])
+		out[0] = c
 	}
 	var unlearned map[string]bool
 	for _, c := range out {

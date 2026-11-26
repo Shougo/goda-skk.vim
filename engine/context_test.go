@@ -246,3 +246,75 @@ func TestOkuriDictionary(t *testing.T) {
 		t.Errorf("context: %q, want %q", got, want)
 	}
 }
+
+// pickDict answers by the text before: a karukan that knows a few words.
+type pickDict struct{ memDict }
+
+func (d pickDict) LookupContext(_ context.Context, typ HenkanType, word, before string) ([]string, error) {
+	if typ == OkuriNasi && word == "きしゃ" && strings.Contains(before, "駅") {
+		return []string{"汽車", "記者"}, nil
+	}
+	if typ == OkuriNasi && word == "きしゃ" {
+		return []string{"記者", "汽車"}, nil
+	}
+	return nil, nil
+}
+
+func (d pickDict) LookupOkuri(_ context.Context, word, okuri, before string) ([]string, error) {
+	if word == "かk" && strings.Contains(before, "恥") {
+		return []string{"掻", "書"}, nil
+	}
+	if word == "かk" {
+		return []string{"書", "掻"}, nil
+	}
+	return nil, nil
+}
+
+func TestPrefer(t *testing.T) {
+	jisyo := memDict{
+		nasi: map[string][]string{"きしゃ": {"記者", "汽車", "帰社"}},
+		ari:  map[string][]string{"かk": {"書", "描", "掻"}},
+	}
+	for _, c := range []struct {
+		name, line string
+		dict       Dictionary
+		typ        HenkanType
+		word       string
+		want       []string
+	}{
+		// Before the order learned (記者, 書 first) and that of the
+		// dictionary file, with the text before.
+		{"nasi", "駅のホームに", Prefer(pickDict{}), OkuriNasi, "きしゃ", []string{"汽車", "記者", "帰社"}},
+		{"ari", "恥を", Prefer(pickDict{}), OkuriAri, "かk", []string{"掻", "書", "描"}},
+		// Without the text: the order learned.
+		{"no text", "", Prefer(pickDict{}), OkuriNasi, "きしゃ", []string{"記者", "汽車", "帰社"}},
+		// Not Prefer, or Fallback: the order learned.
+		{"not prefer", "駅のホームに", pickDict{}, OkuriNasi, "きしゃ", []string{"記者", "汽車", "帰社"}},
+		{"fallback", "駅のホームに", Prefer(Fallback(pickDict{})), OkuriNasi, "きしゃ", []string{"記者", "汽車", "帰社"}},
+	} {
+		s := newSim(t, Config{Dictionaries: []Dictionary{jisyo, c.dict}})
+		s.p.lib.user.Register(OkuriNasi, "きしゃ", "記者")
+		s.p.lib.user.Register(OkuriAri, "かk", "書")
+		before := func() string { return c.line }
+		okuri := ""
+		if c.typ == OkuriAri {
+			okuri = "く"
+		}
+		got := s.p.lib.lookupOkuri(context.Background(), c.typ, c.word, okuri, before)
+		if !slices.Equal(got, c.want) {
+			t.Errorf("%s: %q, want %q", c.name, got, c.want)
+		}
+	}
+	// Through a conversion: confirmed, it is learned first.
+	s := newSim(t, Config{Dictionaries: []Dictionary{jisyo, Prefer(pickDict{})}})
+	s.p.lib.user.Register(OkuriAri, "かk", "書")
+	s.line = "恥を"
+	s.typ("KaKu<c-j>")
+	if s.line != "恥を掻く" {
+		t.Errorf("line: %q", s.line)
+	}
+	s.line = ""
+	if got := s.p.lib.lookupOkuri(context.Background(), OkuriAri, "かk", "く", nil); got[0] != "掻" {
+		t.Errorf("learned: %q", got)
+	}
+}

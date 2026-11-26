@@ -574,12 +574,32 @@ engine.Fallback({dictionary})                          *goda-skk-fallback*
 		not have: a conversion of a reading they have does not
 		wait for the response of karukan or Google.
 
-They wrap any dictionary, in either order: >go
+engine.Prefer({dictionary})                              *goda-skk-prefer*
+		{dictionary} whose first candidate comes first, before
+		those of the dictionaries before it and the order they
+		learned, when the text before the reading is known
+		(|goda-skk-context|).  |goda-skk-karukan| tells the words
+		of a reading by it ("汽車" of "きしゃ" after "駅のホームに",
+		"掻" of "かk" after "恥を", with OkuriAri), where the
+		user dictionary puts the one confirmed last.  Without the
+		text, the order is theirs.  Not with Fallback: it is
+		looked up only when they give no candidates.
+
+They wrap any dictionary, in any order: >go
 
 	Dictionaries: []engine.Dictionary{
 		engine.NewJisyo("~/.skk/SKK-JISYO.L", ""),
 		engine.Fallback(engine.NoLearn(
 			karukan.New(karukan.Params{}))),
+	},
+<
+Or, karukan asked at each conversion, with or without okurigana, and its
+choice by the text before first: >go
+
+	Dictionaries: []engine.Dictionary{
+		engine.NewJisyo("~/.skk/SKK-JISYO.L", ""),
+		engine.Prefer(engine.NoLearn(
+			karukan.New(karukan.Params{OkuriAri: true}))),
 	},
 <
 
