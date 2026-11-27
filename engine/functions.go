@@ -357,7 +357,15 @@ func showCandidates(c *Context) {
 	c.popup = c.popup[:0]
 	for i := 0; i < len(keys) && s.index+i < len(s.candidates); i++ {
 		cand := s.candidates[s.index+i]
-		line := fmt.Sprintf("%c: %s", keys[i], candidateText(cand, s.affix))
+		// Pinned ★ and demoted ↓, as vim-caskk shows them.
+		mark := ""
+		switch c.lib.order.orderOf(s.mode.henkanType(), s.word, candidateWord(cand)) {
+		case orderPin:
+			mark = "★"
+		case orderDemote:
+			mark = "↓"
+		}
+		line := fmt.Sprintf("%c: %s%s", keys[i], mark, candidateText(cand, s.affix))
 		if note := annotation(c, cand); note != "" {
 			line += ";" + note
 		}

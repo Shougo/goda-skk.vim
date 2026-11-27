@@ -85,6 +85,17 @@ func TestPinDemote(t *testing.T) {
 		t.Errorf("line %q", s.line)
 	}
 
+	// Marked in the list.
+	s = newSim(t, Config{Dictionaries: []Dictionary{memDict{nasi: map[string][]string{
+		"かんじ": {"漢字", "感じ", "幹事"},
+	}}}, ShowCandidatesCount: new(0)})
+	s.p.lib.order.toggle(OkuriNasi, "かんじ", "幹事", orderPin)
+	s.p.lib.order.toggle(OkuriNasi, "かんじ", "漢字", orderDemote)
+	s.typ("Kanji ")
+	if want := []string{"a: ★幹事", "s: 感じ", "d: ↓漢字"}; !slices.Equal(s.res.Popup, want) {
+		t.Errorf("list: %q, want %q", s.res.Popup, want)
+	}
+
 	// No file: nothing to pin.
 	s = newSim(t, Config{Dictionaries: []Dictionary{dict}, Keymaps: keymaps, OrderFile: "-"})
 	s.typ("Kanji <c-p>")

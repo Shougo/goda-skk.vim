@@ -867,7 +867,8 @@ pin		Put the candidate chosen (or the one confirmed last)
 		first for its reading from now on, whatever is learned
 		after; again, take that back.  For a word chosen most of
 		the time, another one some time (見た, 観た): learning would
-		put the other one first after it.  In OrderFile.
+		put the other one first after it.  In OrderFile.  The list
+		of the candidates marks it "★", and one demoted "↓".
 		No key by default; as vim-caskk ("p" and "P" do not
 		confirm and type then): >go
 			Keymaps: map[string]map[string]string{

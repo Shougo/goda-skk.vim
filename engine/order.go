@@ -186,3 +186,20 @@ func (o *candidateOrder) apply(typ HenkanType, reading string, cands []string) [
 	})
 	return out
 }
+
+// orderOf returns how the word of a reading is ordered: orderPin,
+// orderDemote, or "".
+func (o *candidateOrder) orderOf(typ HenkanType, reading, word string) string {
+	if o == nil {
+		return ""
+	}
+	o.mu.Lock()
+	defer o.mu.Unlock()
+	o.load()
+	for _, e := range o.entries[orderKey{typ, reading}] {
+		if e.Word == word {
+			return e.Order
+		}
+	}
+	return ""
+}
