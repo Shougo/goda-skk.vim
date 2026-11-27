@@ -192,7 +192,8 @@ g:goda_skk#mapped_keys                                *g:goda_skk#mapped_keys*
 g:goda_skk#completion_backend                  *g:goda_skk#completion_backend*
 		The popup menu of a completion, for EggLikeNewline
 		(<CR> chooses the item selected) and for enabling and
-		disabling, which close it: a |Dictionary| of functions without
+		disabling, which close it, as confirming or canceling the
+		reading it completed does: a |Dictionary| of functions without
 		arguments.
 			visible		Whether it is shown.
 			selected	The index of the item selected (-1:

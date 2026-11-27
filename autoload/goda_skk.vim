@@ -136,6 +136,12 @@ function! goda_skk#handle(func, keys = []) abort
   if get(r, 'completionCancel', v:false)
     let keys .= s:completion('cancel', '')
   endif
+  if get(r, 'completionClose', v:false)
+    " After the text: whether it is still shown is known then. Vim's
+    " popup menu closes on a newline, and its <C-y> would then type the
+    " character above.
+    let keys .= "\<Cmd>call goda_skk#_close_completion()\<CR>"
+  endif
   if r.disable
     call s:disable(r.reenable)
   endif
@@ -395,6 +401,14 @@ function! goda_skk#_locate_kakutei(bufnr, lnum, before, kakutei) abort
   endif
   call cursor(a:lnum, strlen(head) + 1)
   return v:true
+endfunction
+
+" The reading a completion completed is gone: the completion is closed, if
+" it is still shown.
+function! goda_skk#_close_completion() abort
+  if s:completion('visible', v:false)
+    call feedkeys(s:completion('close', ''), 'ni')
+  endif
 endfunction
 
 " A completion (goda-skk.vim/cmp/source/...) replaced the pre-edit.

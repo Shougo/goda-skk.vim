@@ -190,6 +190,12 @@ type Result struct {
 	// g:goda_skk#completion_backend): the reading the item replaced comes
 	// back, still a reading.
 	CompletionCancel bool `json:"completionCancel"`
+	// CompletionClose: Vim closes the completion (the close of
+	// g:goda_skk#completion_backend), if it is still shown: the reading it
+	// completed was confirmed or canceled. A UI that closes only when the
+	// line or the text after the cursor changes (pum.vim) would keep the
+	// list of the reading after EggLikeNewline.
+	CompletionClose bool `json:"completionClose"`
 }
 
 // handle runs fn ("handleKey", "enable", "disable", "toggle",
@@ -305,6 +311,8 @@ func (p *Plugin) run(ctx context.Context, h sdk.Host, fn string, keys []string, 
 		res.CompletionConfirm = true
 		return res, nil
 	}
+	// reading: a reading is typed (▽), which the completion completes.
+	reading := c.state.kind == stateInput && c.state.mode != modeDirect
 	if fn == "handleKey" {
 		for _, k := range keys {
 			handleKey(c, k)
@@ -340,6 +348,10 @@ func (p *Plugin) run(ctx context.Context, h sdk.Host, fn string, keys []string, 
 		out = " \b"
 	}
 	res := p.result(out)
+	if st.PumVisible && reading && c.register == nil &&
+		c.state.kind == stateInput && c.state.mode == modeDirect {
+		res.CompletionClose = true
+	}
 	if r := c.register; r != nil {
 		// Vim asks for the word next; meanwhile, keys go to a new context.
 		res.Register, res.Popup = r.prompt, nil

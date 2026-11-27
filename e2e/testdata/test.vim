@@ -243,6 +243,11 @@ function! s:run() abort
   call s:check('completion backend', g:closed, 2)
   call s:type("\<C-j>la")
   call s:check('completion backend disabled', g:closed, 4)
+  " Confirming the reading closes it too, after enabling, before <Esc>
+  " disables: a UI may keep the list of the reading (pum.vim).
+  let g:closed = 0
+  call s:type("\<C-j>Kanji\<C-j>")
+  call s:check('completion closed with the reading', g:closed, 3)
   unlet g:goda_skk#completion_backend
   set completeopt&
 
