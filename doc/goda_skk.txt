@@ -147,7 +147,7 @@ method is enabled.
 		the latest conversions confirmed in insert mode (64) in the
 		buffer, at its line, what is before it in the line as it was
 		then (a line added above loses it). >vim
-			nmap <Space>r <Plug>(goda-skk-reconvert)
+			nmap <C-j> <Plug>(goda-skk-reconvert)
 <
 
 ==============================================================================
