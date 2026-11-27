@@ -131,6 +131,26 @@ function! s:run() abort
   call feedkeys(" \<C-j>\<Esc>", 'xt')
   " 最変換 was learned first above.
   call s:check('reconvert at the end', getline(1), '再変換')
+  " The selection: in a conversion, or kana converted as if typed.
+  xmap <F3> <Plug>(goda-skk-reconvert)
+  %delete _
+  call feedkeys("i\<C-j>Henkanki \<C-j>da\<Esc>", 'xt')
+  " 変換 of 変換機.
+  call cursor(1, 1)
+  call feedkeys("vl\<F3> \<C-j>\<Esc>", 'xt')
+  call s:check('reconvert selection', getline(1), '変換器だ')
+  call setline(1, 'xへんかんきy')
+  call cursor(1, 2)
+  call feedkeys("v4l\<F3>\<C-j>\<Esc>", 'xt')
+  " 変換器 was learned first above.
+  call s:check('reconvert hiragana', getline(1), 'x変換器y')
+  call setline(1, 'ヘンカンキ')
+  call feedkeys("0v$\<F3> \<C-j>\<Esc>", 'xt')
+  call s:check('reconvert katakana', getline(1), '変換機')
+  call setline(1, 'abc')
+  call feedkeys("0vl\<F3>\<Esc>", 'xt')
+  call s:check('reconvert nothing selected', [getline(1), mode()], ['abc', 'n'])
+  xunmap <F3>
   " A verb registered with its conjugation (<Tab> completes it): its stem
   " takes the other okurigana.
   call s:check('register conjugation', s:type("\<C-j>OmoUShikou \<C-j>\<Tab>\<CR>"), ['思う'])

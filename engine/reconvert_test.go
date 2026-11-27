@@ -40,3 +40,43 @@ func TestConversionAt(t *testing.T) {
 		t.Errorf("kept %d", len(l.conversions))
 	}
 }
+
+func TestToHiragana(t *testing.T) {
+	for _, tc := range []struct {
+		in, want string
+		ok       bool
+	}{
+		{"かんじ", "かんじ", true},
+		{"カンジ", "かんじ", true},
+		{"ラーメン", "らーめん", true},
+		{"ヴァ", "ゔぁ", true},
+		{"いすゞ", "いすゞ", true},
+		{"", "", false},
+		{"漢字", "", false},
+		{"かんじa", "", false},
+		{"ｶﾝｼﾞ", "", false},
+	} {
+		if got, ok := toHiragana(tc.in); got != tc.want || ok != tc.ok {
+			t.Errorf("%q: %q %v, want %q %v", tc.in, got, ok, tc.want, tc.ok)
+		}
+	}
+}
+
+func TestConvertKana(t *testing.T) {
+	s := newSim(t, Config{})
+	s.call("convertKana", "かんじ")
+	if got := s.preedit(); got != "▼漢字" {
+		t.Errorf("convertKana: %q", got)
+	}
+	s.typ(" ")
+	s.typ("<c-j>")
+	if s.line != "感じ" {
+		t.Errorf("confirmed: %q", s.line)
+	}
+	// Not while something is typed.
+	s.typ("K")
+	s.call("convertKana", "へんかん")
+	if got := s.preedit(); got != "▽k" {
+		t.Errorf("while typing: %q", got)
+	}
+}

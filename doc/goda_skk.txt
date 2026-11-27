@@ -159,8 +159,13 @@ method is enabled.
 		kakuteiUndo does right after the conversion.  It is one of
 		the latest conversions confirmed in insert mode (64) in the
 		buffer, at its line, what is before it in the line as it was
-		then (a line added above loses it). >vim
+		then (a line added above loses it).
+		Visual mode (characters of a line): the conversion the
+		selection is in, as in Normal mode; or kana (hiragana, or
+		katakana read as hiragana), deleted and converted as if typed
+		in the henkan mode. >vim
 			nmap <C-j> <Plug>(goda-skk-reconvert)
+			xmap <C-j> <Plug>(goda-skk-reconvert)
 <
 
 ==============================================================================

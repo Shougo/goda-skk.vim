@@ -9,7 +9,7 @@
 " The version of this Vim script that the binary goes with (ScriptVersion of
 " its Go side): goda.vim refuses a binary of another one, and says to build
 " it again. Bumped with it when they no longer work together.
-let s:version = #{version: 5, module: 'github.com/Shougo/goda-skk.vim'}
+let s:version = #{version: 6, module: 'github.com/Shougo/goda-skk.vim'}
 
 let g:goda_skk#enabled = v:false
 let g:goda_skk#mode = ''
@@ -452,14 +452,52 @@ function! goda_skk#reconvert() abort
     echohl WarningMsg | echomsg 'goda-skk: no conversion here' | echohl None
     return
   endif
+  call s:insert_at(r.end, 'reconvert', string(r.id))
+endfunction
+
+" Reconversion (Visual mode, characters of a line): a conversion the
+" selection is in, as goda_skk#reconvert(); or kana, converted as if typed.
+function! goda_skk#reconvert_selection() abort
+  if !goda#is_running('skk')
+    return
+  endif
+  let [lnum, c1] = getpos('v')[1:2]
+  let [lnum2, c2] = getpos('.')[1:2]
+  execute "normal! \<Esc>"
+  if mode() !=# 'n' || lnum != lnum2 || visualmode() !=# 'v'
+    echohl WarningMsg | echomsg 'goda-skk: select characters of a line' | echohl None
+    return
+  endif
+  let [c1, c2] = [min([c1, c2]), max([c1, c2])]
+  let line = getline(lnum)
+  " The byte after the last character selected.
+  let end = c2 - 1 + len(matchstr(line, '.', c2 - 1))
+  let r = goda#request('skk', 'reconvertRange', bufnr('%'), lnum,
+        \ c1 - 1, end, line)
+  if has_key(r, 'id')
+    call cursor(lnum, c1)
+    call s:insert_at(r.end, 'reconvert', string(r.id))
+  elseif has_key(r, 'kana')
+    call setline(lnum, strpart(line, 0, c1 - 1) . strpart(line, end))
+    call cursor(lnum, c1)
+    call s:insert_at(c1 - 1, 'convertKana', r.kana)
+  else
+    echohl WarningMsg | echomsg 'goda-skk: no conversion nor kana here' | echohl None
+  endif
+endfunction
+
+" Insert mode at the byte {col} (0-based) of the line, the input method
+" enabled, and the function {func} of the plugin with {arg}. The keys go
+" before what is typed after the mapping.
+function! s:insert_at(col, func, arg) abort
   let keys = 'A'
-  if r.end < len(getline('.'))
-    call cursor(line('.'), r.end + 1)
+  if a:col < len(getline('.'))
+    call cursor(line('.'), a:col + 1)
     let keys = 'i'
   endif
   call feedkeys(keys . "\<Cmd>call goda_skk#handle('enable')\<CR>"
-        \ . printf("\<Cmd>call goda_skk#handle('reconvert', ['%d'])\<CR>", r.id),
-        \ 'n')
+        \ . printf("\<Cmd>call goda_skk#handle(%s, [%s])\<CR>",
+        \   string(a:func), string(a:arg)), 'ni')
 endfunction
 
 " <Tab> completes the word being registered in the pre-edit (registerTab of

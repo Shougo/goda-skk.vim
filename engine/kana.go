@@ -3,6 +3,7 @@ package engine
 import (
 	"slices"
 	"strings"
+	"unicode/utf8"
 )
 
 // Rule is a rule of a kana table: typing From gives Kana, with Feed left to
@@ -129,6 +130,34 @@ func toKatakana(s string) string {
 		}
 	}
 	return b.String()
+}
+
+// kataHira is hiraKata the other way: a katakana of its own to hiragana.
+var kataHira = func() map[rune]rune {
+	m := map[rune]rune{}
+	for h, k := range hiraKata {
+		if r, n := utf8.DecodeRuneInString(k); n == len(k) {
+			m[r] = h
+		}
+	}
+	return m
+}()
+
+// toHiragana converts katakana to hiragana: s is kana only (and "ー"), or
+// it reports false.
+func toHiragana(s string) (string, bool) {
+	var b strings.Builder
+	for _, r := range s {
+		switch {
+		case r >= 'ぁ' && r <= 'ゖ', r == 'ー', r == 'ゝ', r == 'ゞ':
+			b.WriteRune(r)
+		case kataHira[r] != 0:
+			b.WriteRune(kataHira[r])
+		default:
+			return "", false
+		}
+	}
+	return b.String(), s != ""
 }
 
 // toHankata converts hiragana (and katakana) to half-width katakana.

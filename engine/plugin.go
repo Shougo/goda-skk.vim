@@ -112,18 +112,19 @@ func (p *Plugin) Name() string { return PluginName }
 // binary goes with (sdk.ScriptVersioner): goda.vim refuses a binary of
 // another one and says to build it again. Bump it with s:version there when
 // the Vim script and the binary no longer work together.
-const ScriptVersion = 5
+const ScriptVersion = 6
 
 func (p *Plugin) ScriptVersion() int { return ScriptVersion }
 
 func (p *Plugin) Handlers() map[string]sdk.Handler {
 	return map[string]sdk.Handler{
-		"handle":      p.handle,
-		"reset":       p.reset,
-		"preedit":     p.preedit,
-		"push":        p.push,
-		"pop":         p.pop,
-		"reconvertAt": p.reconvertAt,
+		"handle":         p.handle,
+		"reset":          p.reset,
+		"preedit":        p.preedit,
+		"push":           p.push,
+		"pop":            p.pop,
+		"reconvertRange": p.reconvertRange,
+		"reconvertAt":    p.reconvertAt,
 	}
 }
 
@@ -144,6 +145,30 @@ func (p *Plugin) reconvertAt(_ context.Context, _ sdk.Host, args []any) (any, er
 		return map[string]any{}, nil
 	}
 	return map[string]any{"id": i, "end": len(r.bufferText)}, nil
+}
+
+// reconvertRange finds what the selection of Visual mode reconverts (args:
+// bufnr, lnum, its start and end bytes, 0-based, the end after it, and the
+// line): a conversion it is in, as reconvertAt; or, for kana only, its
+// reading ({"kana": the hiragana}, for the function "convertKana"); or {}.
+func (p *Plugin) reconvertRange(_ context.Context, _ sdk.Host, args []any) (any, error) {
+	var bufnr, lnum, start, end int
+	var line string
+	if err := sdk.DecodeArgs(args, &bufnr, &lnum, &start, &end, &line); err != nil {
+		return nil, fmt.Errorf("reconvertRange(bufnr, lnum, start, end, line): %w", err)
+	}
+	if start < 0 || end > len(line) || start >= end {
+		return map[string]any{}, nil
+	}
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	if i, r := p.lib.conversionAt(bufnr, lnum, start, line); r != nil && end <= len(r.bufferText) {
+		return map[string]any{"id": i, "end": len(r.bufferText)}, nil
+	}
+	if kana, ok := toHiragana(line[start:end]); ok {
+		return map[string]any{"kana": kana}, nil
+	}
+	return map[string]any{}, nil
 }
 
 // Status is what Vim tells with every key: where the input goes and what
@@ -308,6 +333,12 @@ func (p *Plugin) run(ctx context.Context, h sdk.Host, fn string, keys []string, 
 		fn = "handleKey"
 	}
 
+	if fn == "convertKana" {
+		if len(keys) > 0 {
+			convertKana(c, keys[0])
+		}
+		return p.result(c.output()), nil
+	}
 	if fn == "reconvert" {
 		i := -1
 		if len(keys) > 0 {

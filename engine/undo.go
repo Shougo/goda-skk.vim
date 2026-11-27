@@ -213,3 +213,14 @@ func kakuteiUndo(c *Context, _ string) {
 		showCandidates(c)
 	}
 }
+
+// convertKana converts reading (hiragana, kana selected in Visual mode) as
+// if it was typed: its candidates are chosen, after the cursor.
+func convertKana(c *Context, reading string) {
+	s := &c.state
+	if reading == "" || s.typed() {
+		return
+	}
+	s.mode, s.henkanFeed = modeOkuriNasi, reading
+	henkanFirst(c, "")
+}

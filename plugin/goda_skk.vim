@@ -12,5 +12,6 @@ for s:mode in ['noremap!', 'tnoremap']
 endfor
 unlet s:mode s:name
 
-" Normal mode: the conversion under the cursor.
+" Normal mode: the conversion under the cursor; Visual mode: the selection.
 nnoremap <Plug>(goda-skk-reconvert) <Cmd>call goda_skk#reconvert()<CR>
+xnoremap <Plug>(goda-skk-reconvert) <Cmd>call goda_skk#reconvert_selection()<CR>
