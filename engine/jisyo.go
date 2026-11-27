@@ -10,6 +10,7 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"unicode/utf8"
 
 	"golang.org/x/text/encoding/japanese"
@@ -299,6 +300,8 @@ type Jisyo struct {
 	once sync.Once
 	j    *jisyo
 	err  error
+	// read: Init is done (NoWait).
+	read atomic.Bool
 }
 
 // NewJisyo returns the dictionary file at path ("~/" is the home directory).
@@ -322,7 +325,12 @@ func (d *Jisyo) Init(context.Context) error {
 		}
 		d.j = parseJisyo(text, false)
 	})
+	d.read.Store(true)
 	return d.err
+}
+
+func (d *Jisyo) ready() bool {
+	return d.read.Load()
 }
 
 func (d *Jisyo) Lookup(ctx context.Context, typ HenkanType, word string) ([]string, error) {
@@ -360,6 +368,7 @@ var (
 	_ Dictionary      = (*Jisyo)(nil)
 	_ Initializer     = (*Jisyo)(nil)
 	_ blockDictionary = (*Jisyo)(nil)
+	_ readier         = (*Jisyo)(nil)
 )
 
 // A candidate with "/" (which separates the candidates) is written

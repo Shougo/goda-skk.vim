@@ -96,10 +96,35 @@ func Prefer(d Dictionary) Dictionary {
 	return o
 }
 
-// option is a dictionary with the options of NoLearn, Fallback and Prefer.
+// NoWait returns d skipped while it is still being read, rather than
+// waited for: a large dictionary file (engine.NewJisyo) read when the plugin
+// starts gives no candidates to a conversion or a completion before it is
+// read, where the others do. A dictionary that is not read first (not an
+// Initializer) is always looked up.
+func NoWait(d Dictionary) Dictionary {
+	o := wrap(d)
+	o.noWait = true
+	return o
+}
+
+// readier is an Initializer that tells whether it is ready (Init done),
+// for NoWait.
+type readier interface {
+	ready() bool
+}
+
+// skipped reports whether d, of options opt, is not looked up now: NoWait
+// and still being read.
+func skipped(d Dictionary, opt option) bool {
+	r, ok := d.(readier)
+	return opt.noWait && ok && !r.ready()
+}
+
+// option is a dictionary with the options of NoLearn, Fallback, Prefer and
+// NoWait.
 type option struct {
 	Dictionary
-	noLearn, fallback, prefer bool
+	noLearn, fallback, prefer, noWait bool
 }
 
 // wrap returns d with its options, NoLearn(Fallback(d)) being one option.
@@ -296,7 +321,7 @@ func (l *library) lookupWith(ctx context.Context, typ HenkanType, word, okuri st
 	pattern := numberWord(word)
 	for i, d := range l.all() {
 		d, opt := unwrap(d)
-		if opt.fallback && len(out) > 0 {
+		if (opt.fallback && len(out) > 0) || skipped(d, opt) {
 			continue
 		}
 		name = dictionaryName(i, d)
@@ -396,7 +421,7 @@ func (l *library) complete(ctx context.Context, prefixes []string) []Entry {
 	learned := map[[2]string]bool{}
 	for _, d := range l.all() {
 		d, opt := unwrap(d)
-		if opt.fallback && len(out) > 0 {
+		if (opt.fallback && len(out) > 0) || skipped(d, opt) {
 			continue
 		}
 		for _, p := range prefixes {
@@ -499,8 +524,8 @@ func sahenStem(typ HenkanType, word, okuri string) (string, bool) {
 func (l *library) lookupSahen(ctx context.Context, stem string) []string {
 	var out []string
 	for _, d := range l.all() {
-		d, _ := unwrap(d)
-		if _, ok := d.(blockDictionary); !ok {
+		d, opt := unwrap(d)
+		if _, ok := d.(blockDictionary); !ok || skipped(d, opt) {
 			continue
 		}
 		cs, err := d.Lookup(ctx, OkuriNasi, stem)

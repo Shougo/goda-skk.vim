@@ -627,12 +627,31 @@ engine.Prefer({dictionary})                              *goda-skk-prefer*
 		Not with Fallback: it is looked up only when they give no
 		candidates.
 
+engine.NoWait({dictionary})                              *goda-skk-nowait*
+		{dictionary} skipped while it is still being read, rather
+		than waited for.  The dictionary files are read in the
+		background when the plugin starts, and a conversion or a
+		completion before one is read waits for it: a large one
+		seldom needed (the headwords of Wikipedia) gives no
+		candidates until then, and the others do.  A dictionary
+		that is not read first (karukan, Google, skkserv) is
+		always looked up.
+
 They wrap any dictionary, in any order: >go
 
 	Dictionaries: []engine.Dictionary{
 		engine.NewJisyo("~/.skk/SKK-JISYO.L", ""),
 		engine.Fallback(engine.NoLearn(
 			karukan.New(karukan.Params{}))),
+	},
+<
+Or, with no conversion engine, a large dictionary file for the readings the
+others do not have, not waited for: >go
+
+	Dictionaries: []engine.Dictionary{
+		engine.NewJisyo("~/.skk/SKK-JISYO.L", ""),
+		engine.Fallback(engine.NoWait(
+			engine.NewJisyo("~/.skk/SKK-JISYO.jawiki", ""))),
 	},
 <
 Or, karukan asked at each conversion, with or without okurigana, and its
