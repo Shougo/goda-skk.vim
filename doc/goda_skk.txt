@@ -638,17 +638,18 @@ engine.Fallback({dictionary})                          *goda-skk-fallback*
 
 engine.Prefer({dictionary})                              *goda-skk-prefer*
 		{dictionary} whose first candidate comes first, before
-		those of the dictionaries before it and the order they
-		learned, when the text before the reading is known
-		(|goda-skk-context|).  |goda-skk-karukan| tells the words
-		of a reading by it ("汽車" of "きしゃ" after "駅のホームに",
-		"掻" of "かk" after "恥を", with OkuriAri), where the
-		user dictionary puts the one confirmed last.  Without the
-		text, the order is theirs, and so it is when {dictionary}
-		is not sure of its first (an engine.SureDictionary,
-		|goda-skk-context|: the Margin of |goda-skk-karukan|).
-		Not with Fallback: it is looked up only when they give no
-		candidates.
+		those of the dictionaries before it, when the text before
+		the reading is known (|goda-skk-context|).
+		|goda-skk-karukan| tells the words of a reading by it
+		("汽車" of "きしゃ" after "駅のホームに", "掻" of "かk"
+		after "恥を", with OkuriAri).  Not before the first of the
+		user dictionary, the one confirmed last: it is what was
+		chosen, and a short text before often tells wrong ("印"
+		taken for "in").  Without the text, the order is theirs,
+		and so it is when {dictionary} is not sure of its first
+		(an engine.SureDictionary, |goda-skk-context|: the Margin
+		of |goda-skk-karukan|).  Not with Fallback: it is looked
+		up only when they give no candidates.
 
 engine.NoWait({dictionary})                              *goda-skk-nowait*
 		{dictionary} skipped while it is still being read, rather

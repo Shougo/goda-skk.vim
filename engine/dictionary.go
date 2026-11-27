@@ -326,7 +326,14 @@ func (l *library) lookupWith(ctx context.Context, typ HenkanType, word, okuri st
 		}
 	}
 	pattern := numberWord(word)
+	// learnedFirst: the first candidate is the user dictionary's, learned:
+	// Prefer does not take its place (a homophone chosen by the text before
+	// was wrong where it did).
+	learnedFirst := false
 	for i, d := range l.all() {
+		if i == 1 && l.user != nil {
+			learnedFirst = len(out) > 0
+		}
 		d, opt := unwrap(d)
 		if (opt.fallback && len(out) > 0) || skipped(d, opt) {
 			continue
@@ -390,7 +397,7 @@ func (l *library) lookupWith(ctx context.Context, typ HenkanType, word, okuri st
 		name = "conjugation"
 		add(l.lookupConjugated(ctx, word, okuri), false)
 	}
-	if i, ok := seen[preferred]; ok && i > 0 {
+	if i, ok := seen[preferred]; ok && i > 0 && !learnedFirst {
 		if trace != nil {
 			trace.first, trace.preferred = candidateWord(out[0]), preferred
 		}

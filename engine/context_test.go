@@ -280,21 +280,26 @@ func TestPrefer(t *testing.T) {
 		dict       Dictionary
 		typ        HenkanType
 		word       string
+		learned    bool
 		want       []string
 	}{
-		// Before the order learned (記者, 書 first) and that of the
-		// dictionary file, with the text before.
-		{"nasi", "駅のホームに", Prefer(pickDict{}), OkuriNasi, "きしゃ", []string{"汽車", "記者", "帰社"}},
-		{"ari", "恥を", Prefer(pickDict{}), OkuriAri, "かk", []string{"掻", "書", "描"}},
-		// Without the text: the order learned.
-		{"no text", "", Prefer(pickDict{}), OkuriNasi, "きしゃ", []string{"記者", "汽車", "帰社"}},
-		// Not Prefer, or Fallback: the order learned.
-		{"not prefer", "駅のホームに", pickDict{}, OkuriNasi, "きしゃ", []string{"記者", "汽車", "帰社"}},
-		{"fallback", "駅のホームに", Prefer(Fallback(pickDict{})), OkuriNasi, "きしゃ", []string{"記者", "汽車", "帰社"}},
+		// Before the order of the dictionary file, with the text before.
+		{"nasi", "駅のホームに", Prefer(pickDict{}), OkuriNasi, "きしゃ", false, []string{"汽車", "記者", "帰社"}},
+		{"ari", "恥を", Prefer(pickDict{}), OkuriAri, "かk", false, []string{"掻", "書", "描"}},
+		// Not before the first learned (記者, 書): it is what was chosen.
+		{"nasi learned", "駅のホームに", Prefer(pickDict{}), OkuriNasi, "きしゃ", true, []string{"記者", "汽車", "帰社"}},
+		{"ari learned", "恥を", Prefer(pickDict{}), OkuriAri, "かk", true, []string{"書", "描", "掻"}},
+		// Without the text: the order of the dictionaries.
+		{"no text", "", Prefer(pickDict{}), OkuriNasi, "きしゃ", false, []string{"記者", "汽車", "帰社"}},
+		// Not Prefer, or Fallback: the order of the dictionaries.
+		{"not prefer", "駅のホームに", pickDict{}, OkuriNasi, "きしゃ", false, []string{"記者", "汽車", "帰社"}},
+		{"fallback", "駅のホームに", Prefer(Fallback(pickDict{})), OkuriNasi, "きしゃ", false, []string{"記者", "汽車", "帰社"}},
 	} {
 		s := newSim(t, Config{Dictionaries: []Dictionary{jisyo, c.dict}})
-		s.p.lib.user.Register(OkuriNasi, "きしゃ", "記者")
-		s.p.lib.user.Register(OkuriAri, "かk", "書")
+		if c.learned {
+			s.p.lib.user.Register(OkuriNasi, "きしゃ", "記者")
+			s.p.lib.user.Register(OkuriAri, "かk", "書")
+		}
 		before := func() string { return c.line }
 		okuri := ""
 		if c.typ == OkuriAri {
@@ -307,7 +312,6 @@ func TestPrefer(t *testing.T) {
 	}
 	// Through a conversion: confirmed, it is learned first.
 	s := newSim(t, Config{Dictionaries: []Dictionary{jisyo, Prefer(pickDict{})}})
-	s.p.lib.user.Register(OkuriAri, "かk", "書")
 	s.line = "恥を"
 	s.typ("KaKu<c-j>")
 	if s.line != "恥を掻く" {
