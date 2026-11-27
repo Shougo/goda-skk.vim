@@ -582,6 +582,7 @@ function! s:enable(keys) abort
   endif
   let g:goda_skk#enabled = v:true
   let s:enabled_mode = mode
+  let s:enabled_buf = bufnr('%')
   call s:autocmds()
   call s:doautocmd('goda-skk-enable-post')
 endfunction
@@ -601,6 +602,7 @@ function! s:autocmds() abort
     autocmd ModeChanged i*:ni* call s:ctrl_o_enter()
     autocmd ModeChanged ni*:i* call s:check_stale()
     autocmd WinLeave * call s:win_leave()
+    autocmd BufEnter * call s:buf_enter()
   augroup END
 endfunction
 
@@ -611,7 +613,7 @@ function! s:disable(reenable = v:false) abort
   call s:doautocmd('goda-skk-disable-pre')
   call goda_skk#popup#close()
   call goda_skk#highlight#clear()
-  call goda_skk#internal#restore(get(s:, 'enabled_mode', 'i'))
+  call s:restore(get(s:, 'enabled_mode', 'i'), get(s:, 'enabled_buf', bufnr('%')))
   let g:goda_skk#enabled = v:false
   augroup goda_skk_enabled
     autocmd!
@@ -680,6 +682,38 @@ function! s:win_leave() abort
     let s:pre_edit_at = {}
   endif
   call s:reset()
+endfunction
+
+" Another buffer is entered without leaving Insert mode or the terminal job
+" (a callback opening a file, as vim-guise does, or <Cmd>): no autocommand
+" of leaving may come before (":tab drop" has only TabLeave), and the
+" mappings are in the buffer left.
+function! s:buf_enter() abort
+  if bufnr('%') == get(s:, 'enabled_buf', bufnr('%'))
+        \ || mode() =~# '^c' || get(s:, 'registering', 0) > 0
+    return
+  endif
+  call s:reset()
+  call s:disable()
+endfunction
+
+" goda_skk#internal#restore({mode}) in the buffer {bufnr}, the one enabled:
+" in a window of it, or when it is entered next.
+function! s:restore(mode, bufnr) abort
+  if a:bufnr == bufnr('%')
+    call goda_skk#internal#restore(a:mode)
+    return
+  endif
+  if !bufexists(a:bufnr)
+    return
+  endif
+  let cmd = printf('call goda_skk#internal#restore(%s)', string(a:mode))
+  let wins = win_findbuf(a:bufnr)
+  if !empty(wins)
+    call win_execute(wins[0], cmd)
+  else
+    execute printf('autocmd BufEnter <buffer=%d> ++once %s', a:bufnr, cmd)
+  endif
 endfunction
 
 function! s:reset() abort

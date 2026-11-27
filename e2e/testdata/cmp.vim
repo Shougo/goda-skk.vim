@@ -9,6 +9,9 @@ execute 'set runtimepath^=' . fnameescape($GODA_SKK_DIR)
 let g:goda_cmp#binary = $GODA_SKK_BINARY
 let g:goda_skk#binary = $GODA_SKK_BINARY
 map! <C-j> <Plug>(goda-skk-enable)
+" <F2> opens a file as vim-guise does: in a callback, without leaving Insert
+" mode.
+inoremap <F2> <Cmd>call timer_start(50, {-> execute('silent noswapfile tab drop ' . tempname())})<CR>
 
 function! s:dump() abort
   " The rows of the popup, as the user sees them: complete_info() gives the
@@ -24,7 +27,8 @@ function! s:dump() abort
     endfor
   endif
   call writefile([json_encode(#{line: getline('.'), words: words,
-        \ phase: g:goda_skk#state.phase})], $GODA_SKK_RESULT, 'a')
+        \ phase: g:goda_skk#state.phase,
+        \ enabled: g:goda_skk#enabled, mapped: maparg('a', 'i', 0, 1)->get('buffer', 0)})], $GODA_SKK_RESULT, 'a')
 endfunction
 inoremap <C-]> <Cmd>call <SID>dump()<CR>
 

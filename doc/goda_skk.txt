@@ -106,7 +106,8 @@ candidate, the rest is listed in a popup: choose with "asdfjkl".
 "L" to full-width alphanumerics, "/" to abbrev (a reading in ASCII), and "l"
 disables the input method; <C-j> enables it again.  <Esc> confirms what is
 typed, disables it and leaves insert mode; leaving insert mode or the window
-otherwise disables it too.
+otherwise disables it too, as entering another buffer does without leaving
+insert mode (a callback opening a file, as vim-guise does for $EDITOR).
 
 A conversion confirmed is learned in the user dictionary, and comes first
 the next time.  When a reading has no (more) candidates, the word is asked

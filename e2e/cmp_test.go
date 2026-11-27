@@ -13,33 +13,60 @@ import (
 
 // The completion of goda-cmp.vim with the sources of goda-skk.vim
 // (cmp/source/...), typed in a pseudo terminal.
-func TestCompletion(t *testing.T) {
+// dump (Ctrl-]) records the state to $GODA_SKK_RESULT (testdata/cmp.vim).
+const dump = "\x1d"
+
+// drivePty types steps ([keys, seconds to wait after]) in the editor of
+// envName (name: its usual name) in a pseudo terminal, with goda-cmp.vim
+// (cmpbin) and testdata/cmp.vim, and returns what dump recorded.
+func drivePty(t *testing.T, envName, name string, steps [][]any) []byte {
+	t.Helper()
 	if runtime.GOOS == "windows" {
 		t.Skip("no pseudo terminal")
 	}
 	if _, err := exec.LookPath("python3"); err != nil {
 		t.Skip("python3 drives the pseudo terminal")
 	}
+	bin := editor(t, envName, name)
+	env := setupBinary(t, "./cmpbin")
+	// The Vim script of goda-cmp.vim and of its UI (cmpbin).
+	for v, mod := range map[string]string{
+		"GODA_CMP_DIR":    "github.com/Shougo/goda-cmp.vim",
+		"GODA_CMP_UI_DIR": "github.com/Shougo/goda-cmp-ui-native.vim",
+	} {
+		out, err := exec.Command("go", "list", "-m", "-f", "{{.Dir}}", mod).Output()
+		if err != nil {
+			t.Fatalf("go list: %v", err)
+		}
+		env = append(env, v+"="+strings.TrimSpace(string(out)))
+	}
+	vimrc, err := filepath.Abs("testdata/cmp.vim")
+	if err != nil {
+		t.Fatal(err)
+	}
+	b, err := json.Marshal(steps)
+	if err != nil {
+		t.Fatal(err)
+	}
+	drive, err := filepath.Abs("testdata/drive.py")
+	if err != nil {
+		t.Fatal(err)
+	}
+	cmd := exec.Command("python3", "-I", drive, bin, vimrc, string(b))
+	cmd.Env = env
+	if out, err := cmd.CombinedOutput(); err != nil {
+		t.Fatalf("driver: %v\n%s", err, out)
+	}
+	raw, err := os.ReadFile(resultFile(env))
+	if err != nil {
+		t.Fatalf("nothing recorded: %v", err)
+	}
+	return raw
+}
+
+func TestCompletion(t *testing.T) {
 	for _, ed := range []struct{ env, name string }{{"GODA_VIM", "vim"}, {"GODA_NVIM", "nvim"}} {
 		t.Run(ed.name, func(t *testing.T) {
-			bin := editor(t, ed.env, ed.name)
-			env := setupBinary(t, "./cmpbin")
-			// The Vim script of goda-cmp.vim and of its UI (cmpbin).
-			for v, mod := range map[string]string{
-				"GODA_CMP_DIR":    "github.com/Shougo/goda-cmp.vim",
-				"GODA_CMP_UI_DIR": "github.com/Shougo/goda-cmp-ui-native.vim",
-			} {
-				out, err := exec.Command("go", "list", "-m", "-f", "{{.Dir}}", mod).Output()
-				if err != nil {
-					t.Fatalf("go list: %v", err)
-				}
-				env = append(env, v+"="+strings.TrimSpace(string(out)))
-			}
-			vimrc, err := filepath.Abs("testdata/cmp.vim")
-			if err != nil {
-				t.Fatal(err)
-			}
-			const dump = "\x1d" // Ctrl-]
 			steps := [][]any{
 				{"i\n", 1.0},      // <C-j>
 				{"Ni", 1.0},       // ▽に
@@ -63,23 +90,7 @@ func TestCompletion(t *testing.T) {
 				{"hon ", 0.5},
 				{dump, 0.2},
 			}
-			b, err := json.Marshal(steps)
-			if err != nil {
-				t.Fatal(err)
-			}
-			drive, err := filepath.Abs("testdata/drive.py")
-			if err != nil {
-				t.Fatal(err)
-			}
-			cmd := exec.Command("python3", "-I", drive, bin, vimrc, string(b))
-			cmd.Env = env
-			if out, err := cmd.CombinedOutput(); err != nil {
-				t.Fatalf("driver: %v\n%s", err, out)
-			}
-			raw, err := os.ReadFile(resultFile(env))
-			if err != nil {
-				t.Fatalf("nothing recorded: %v", err)
-			}
+			raw := drivePty(t, ed.env, ed.name, steps)
 			type rec struct {
 				Line  string   `json:"line"`
 				Words []string `json:"words"`
