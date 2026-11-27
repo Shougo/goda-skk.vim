@@ -510,6 +510,29 @@ function! goda_skk#_register_word() abort
   call goda_skk#handle('registerDone', [word])
 endfunction
 
+" Reconversion (Normal mode): the conversion under the cursor, confirmed in
+" insert mode before, goes back to choosing its candidates, as kakuteiUndo
+" does right after it. Insert mode is entered after its text.
+function! goda_skk#reconvert() abort
+  if !goda#is_running('skk')
+    return
+  endif
+  let r = goda#request('skk', 'reconvertAt', bufnr('%'), line('.'),
+        \ col('.') - 1, getline('.'))
+  if empty(r)
+    echohl WarningMsg | echomsg 'goda-skk: no conversion here' | echohl None
+    return
+  endif
+  let keys = 'A'
+  if r.end < len(getline('.'))
+    call cursor(line('.'), r.end + 1)
+    let keys = 'i'
+  endif
+  call feedkeys(keys . "\<Cmd>call goda_skk#handle('enable')\<CR>"
+        \ . printf("\<Cmd>call goda_skk#handle('reconvert', ['%d'])\<CR>", r.id),
+        \ 'n')
+endfunction
+
 " The completions of the word to register: with the conjugations of a
 " conjugation dictionary, for a reading with okurigana (<Tab> after "思").
 function! goda_skk#_register_completions(arglead, cmdline, pos) abort

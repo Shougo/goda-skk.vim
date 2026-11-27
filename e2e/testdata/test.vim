@@ -109,6 +109,24 @@ function! s:run() abort
   call s:check('register cancelled', s:type("\<C-j>Ringo \<Esc>a"), ['りんごあ'])
   call s:check('register <C-g>', s:type("\<C-j>Ringo \<C-g>a"), ['りんごあ'])
   call s:check('register maps', maparg('a', 'c'), '')
+  " Reconversion in Normal mode: back to choosing the candidates of the
+  " conversion under the cursor, in the middle of the line or at its end.
+  %delete _
+  call feedkeys("i\<C-j>aSaihenkan \<C-j>o\<Esc>", 'xt')
+  call cursor(1, strlen('あ再') + 1)
+  call goda_skk#reconvert()
+  call feedkeys(" \<C-j>\<Esc>", 'xt')
+  call s:check('reconvert', getline(1), 'あ最変換お')
+  call cursor(1, strlen('あ最変換お'))
+  call goda_skk#reconvert()
+  call feedkeys("\<Esc>", 'xt')
+  call s:check('reconvert nothing', getline(1), 'あ最変換お')
+  %delete _
+  call feedkeys("i\<C-j>Saihenkan \<C-j>\<Esc>", 'xt')
+  call goda_skk#reconvert()
+  call feedkeys(" \<C-j>\<Esc>", 'xt')
+  " 最変換 was learned first above.
+  call s:check('reconvert at the end', getline(1), '再変換')
   " A verb registered with its conjugation (<Tab> completes it): its stem
   " takes the other okurigana.
   call s:check('register conjugation', s:type("\<C-j>OmoU思\<Tab>\<CR>"), ['思う'])

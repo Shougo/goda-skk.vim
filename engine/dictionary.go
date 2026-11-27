@@ -161,6 +161,9 @@ type library struct {
 	maxLearn int
 	// sahen: Config.SahenConvert.
 	sahen bool
+	// conversions are the latest ones confirmed, the latest last, for
+	// reconversion (they outlive the contexts).
+	conversions []*kakuteiRecord
 	// order: the candidates pinned and demoted (Config.OrderFile).
 	order *candidateOrder
 	// tracing: lookupOkuri keeps trace, what it found (Config.ConvertLog).

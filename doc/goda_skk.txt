@@ -140,6 +140,16 @@ They are |:map!| and |:tmap| mappings: insert mode, the command line and
 terminal jobs.  A key mapped to one of them keeps doing that while the input
 method is enabled.
 
+<Plug>(goda-skk-reconvert)                       *<Plug>(goda-skk-reconvert)*
+		Normal mode: reconvert the word under the cursor, back to
+		choosing its candidates in insert mode after it, as
+		kakuteiUndo does right after the conversion.  It is one of
+		the latest conversions confirmed in insert mode (64) in the
+		buffer, at its line, what is before it in the line as it was
+		then (a line added above loses it). >vim
+			nmap <Space>r <Plug>(goda-skk-reconvert)
+<
+
 ==============================================================================
 FUNCTIONS                                                 *goda-skk-functions*
 

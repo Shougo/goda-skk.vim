@@ -105,7 +105,48 @@ func (c *Context) resolvePendingKakutei() bool {
 	}
 	p.bufferText, p.tail = text, ""
 	c.undo.last = p
+	c.lib.rememberConversion(p)
 	return true
+}
+
+// maxConversions is how many conversions reconversion knows.
+const maxConversions = 64
+
+// rememberConversion keeps r for reconversion, the latest last.
+func (l *library) rememberConversion(r *kakuteiRecord) {
+	if r.vimMode != "i" {
+		return
+	}
+	l.conversions = slices.DeleteFunc(l.conversions, func(o *kakuteiRecord) bool { return o == r })
+	l.conversions = append(l.conversions, r)
+	if len(l.conversions) > maxConversions {
+		l.conversions = slices.Delete(l.conversions, 0, len(l.conversions)-maxConversions)
+	}
+}
+
+// conversionAt returns the latest conversion of the buffer bufnr whose text
+// is under the byte col (0-based) of its line lnum, as it was confirmed:
+// what is before it is still there.
+func (l *library) conversionAt(bufnr, lnum, col int, line string) (int, *kakuteiRecord) {
+	for i := len(l.conversions) - 1; i >= 0; i-- {
+		r := l.conversions[i]
+		start := len(r.bufferText) - len(r.kakutei)
+		if r.bufnr == bufnr && r.lnum == lnum && strings.HasPrefix(line, r.bufferText) &&
+			col >= start && col < len(r.bufferText) {
+			return i, r
+		}
+	}
+	return -1, nil
+}
+
+// reconvert takes the conversion i back to choosing its candidate, the
+// cursor after it (as Vim put it): kakuteiUndo of a conversion not the last.
+func reconvert(c *Context, i int) {
+	if i < 0 || i >= len(c.lib.conversions) {
+		return
+	}
+	c.undo.last = c.lib.conversions[i]
+	kakuteiUndo(c, "")
 }
 
 func (c *Context) recordPointRestore(kakutei, bufferText string) {

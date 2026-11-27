@@ -11,3 +11,6 @@ for s:mode in ['noremap!', 'tnoremap']
   endfor
 endfor
 unlet s:mode s:name
+
+" Normal mode: the conversion under the cursor.
+nnoremap <Plug>(goda-skk-reconvert) <Cmd>call goda_skk#reconvert()<CR>

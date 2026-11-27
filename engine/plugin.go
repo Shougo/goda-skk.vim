@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"log"
+	"strconv"
 	"strings"
 	"sync"
 
@@ -127,7 +128,27 @@ func (p *Plugin) Handlers() map[string]sdk.Handler {
 		"pop":     p.pop,
 
 		"registerCompletions": p.registerCompletions,
+		"reconvertAt":         p.reconvertAt,
 	}
+}
+
+// reconvertAt finds the conversion under the cursor of Normal mode (args:
+// bufnr, lnum, the byte column, 0-based, and the line), for reconversion:
+// {"id": its index for the function "reconvert", "end": the byte where its
+// text ends}, or {} for none.
+func (p *Plugin) reconvertAt(_ context.Context, _ sdk.Host, args []any) (any, error) {
+	var bufnr, lnum, col int
+	var line string
+	if err := sdk.DecodeArgs(args, &bufnr, &lnum, &col, &line); err != nil {
+		return nil, fmt.Errorf("reconvertAt(bufnr, lnum, col, line): %w", err)
+	}
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	i, r := p.lib.conversionAt(bufnr, lnum, col, line)
+	if r == nil {
+		return map[string]any{}, nil
+	}
+	return map[string]any{"id": i, "end": len(r.bufferText)}, nil
 }
 
 // registerCompletions returns the completions of the word typed in the
@@ -325,6 +346,15 @@ func (p *Plugin) run(ctx context.Context, h sdk.Host, fn string, keys []string, 
 		return p.result(c.output()), nil
 	case fn == "enable" || fn == "disable":
 		fn = "handleKey"
+	}
+
+	if fn == "reconvert" {
+		i := -1
+		if len(keys) > 0 {
+			i, _ = strconv.Atoi(keys[0])
+		}
+		reconvert(c, i)
+		return p.result(c.output()), nil
 	}
 
 	if fn == "registerDone" {
