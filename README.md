@@ -6,17 +6,19 @@ SKK input method for Vim and Neovim, built on
 with the input method written in Go and configured in Go — a small program
 you own.
 
-Status: early. Conversion with okurigana, registering words, the user
-dictionary and dictionary files, kakuteiUndo, insert mode, the command line
-and terminal jobs work; the highlight of the pre-edit and the state popup
+Conversion with okurigana, registering words, the user dictionary and
+dictionary files, kakuteiUndo, insert mode, the command line and terminal jobs
+work; the highlight of the pre-edit and the state popup
 (skkeleton-henkan-highlight and skkeleton-state-popup) are built in, and
-[goda-cmp.vim](https://github.com/Shougo/goda-cmp.vim) completes readings
-(the sources `cmp/source/skk` and `cmp/source/skkokuri`, the ddc.vim
-sources of skkeleton). Besides dictionary files, an SKK server
-(`dictionary/skkserv`), Google Japanese Input (`dictionary/google`) and
-the neural kana-kanji conversion of
-[karukan](https://github.com/togatoga/karukan) (`dictionary/karukan`) can
-be dictionaries.
+[goda-cmp.vim](https://github.com/Shougo/goda-cmp.vim) completes readings (the
+sources `cmp/source/skk` and `cmp/source/skkokuri`, the ddc.vim sources of
+skkeleton). Besides dictionary files, an SKK server (`dictionary/skkserv`),
+Google Japanese Input (`dictionary/google`) and the neural kana-kanji
+conversion of [karukan](https://github.com/togatoga/karukan)
+(`dictionary/karukan`) can be dictionaries.
+
+Before 1.0.0, a change that breaks extensions or configurations is made only
+in a minor version and said in its release.
 
 The author's configuration of goda-cmp.vim completes with them:
 [goda-cmp/main.go](https://github.com/Shougo/shougo-s-github/blob/master/vim/rc/goda-cmp/main.go)
