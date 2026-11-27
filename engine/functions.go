@@ -240,6 +240,17 @@ func prefix(c *Context, key string) {
 		henkanFirst(c, key)
 		return
 	}
+	if c.inHenkanFirst {
+		// The keys of a rule of the kana table (";;" of prefix, as an
+		// affix key): typed again, they would call it again. Without a
+		// reading, they start that of a suffix (">" while choosing
+		// confirms first).
+		if s.mode == modeDirect && !s.directInput {
+			henkanPoint(c)
+		}
+		acceptResult(c, Rule{Kana: ">"}, "")
+		return
+	}
 	kanaInput(c, key)
 }
 

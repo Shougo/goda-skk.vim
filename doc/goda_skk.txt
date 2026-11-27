@@ -846,6 +846,15 @@ henkanPoint	Start a reading (";").
 suffix		Confirm and start a reading for a suffix (">").
 
 prefix		A reading as a prefix (">" at the end of a reading).
+		Given to keys of the kana table, an affix key (">" needs
+		Shift): after a reading, they convert it as a prefix;
+		elsewhere, they start the reading of a suffix, after
+		confirming the candidate chosen: >go
+			KanaTable: engine.RomTable.With(
+				engine.Rule{From: ";;", Func: "prefix"},
+			),
+<		"Chou;;" is "▼超" and ";;teki " then "超▼的".  ";" alone
+		stays the henkanPoint, after the next key.
 
 kanaInput	Type the key through the kana table.
 
