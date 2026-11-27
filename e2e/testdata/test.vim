@@ -103,10 +103,14 @@ function! s:run() abort
   call s:check('user dictionary', readfile($GODA_SKK_USER_JISYO)->filter('v:val =~# "^かんじ"'),
         \ ['かんじ /関知/感じ/漢字/'])
 
-  " Registering a word, converting in the prompt; then it is learned.
-  call s:check('register', s:type("\<C-j>Mikan Kanji \<C-j>\<CR>"), ['関知'])
+  " Registering a word in the pre-edit, converting in it; then it is
+  " learned.
+  %delete _
+  call feedkeys("i\<C-j>Mikan Kanji \<Cmd>let s:pre = getline(1)\<CR>\<C-j>\<CR>\<Esc>", 'xt')
+  call s:check('register', [s:pre, getline(1)], ['▼[登録:みかん]▼関知', '関知'])
   call s:check('registered', s:type("\<C-j>Mikan \<C-j>"), ['関知'])
-  call s:check('register cancelled', s:type("\<C-j>Ringo \<Esc>a"), ['りんごあ'])
+  " <Esc> gives it up, and leaves.
+  call s:check('register cancelled', s:type("\<C-j>Ringo \<Esc>a"), ['りんご'])
   call s:check('register <C-g>', s:type("\<C-j>Ringo \<C-g>a"), ['りんごあ'])
   call s:check('register maps', maparg('a', 'c'), '')
   " Reconversion in Normal mode: back to choosing the candidates of the
@@ -129,13 +133,16 @@ function! s:run() abort
   call s:check('reconvert at the end', getline(1), '再変換')
   " A verb registered with its conjugation (<Tab> completes it): its stem
   " takes the other okurigana.
-  call s:check('register conjugation', s:type("\<C-j>OmoU思\<Tab>\<CR>"), ['思う'])
+  call s:check('register conjugation', s:type("\<C-j>OmoUShikou \<C-j>\<Tab>\<CR>"), ['思う'])
+  " <Tab> was mapped only meanwhile.
+  call s:check('register no <Tab>', maparg('<Tab>', 'i', 0, 1)->get('buffer', 0), 0)
   call s:check('registered stem', readfile($GODA_SKK_USER_JISYO)->filter('v:val =~# "^おも "'),
         \ ['おも /思;@verb-5-w/'])
   call s:check('registered conjugation', s:type("\<C-j>OmoWanai\<C-j>"), ['思わない'])
   let s:events = []
   call s:type("\<C-j>Suika \<CR>")
-  call s:check('register events', s:events, ['enable', 'enable', 'disable', 'enable', 'disable'])
+  " In the pre-edit: no command line to enable the input method in.
+  call s:check('register events', s:events, ['enable', 'disable'])
 
   " kakuteiUndo after typing on, and the cursor back at the end.
   call s:check('kakuteiUndo', s:type("\<C-j>Nihon \<C-j>aiu\<C-z> \<C-j>lx"), ['二本あいうx'])
@@ -290,21 +297,16 @@ function! s:run() abort
         \ . "\<Cmd>let s:st = [g:goda_skk#enabled, g:goda_skk#state]\<CR>\<Esc>", 'xt')
   call s:check('other window', s:st, [v:false, #{phase: '', henkanFeed: ''}])
   only!
-  " Not while registering: the prompt belongs to the window.
+  " Another window entered while registering: the registration is given up,
+  " and its reading is left in the line.
   call setline(1, 'ab cd')
   new
   call setline(1, 'xy')
   wincmd p
   let win = win_getid()
-  call feedkeys("A\<C-j>Ringo \<Cmd>wincmd w\<CR>\<Esc>"
-        \ . "\<Cmd>let s:st = [win_getid() == win ? 'same' : 'other', g:goda_skk#enabled, g:goda_skk#mode]\<CR>a\<Esc>", 'xt')
-  call s:check('register window', s:st, ['same', v:true, 'hira'])
-  call setline(1, 'ab cd')
-  call feedkeys("A\<C-j>Ringo Kanji \<C-j>\<Cmd>wincmd w\<CR>\<CR>"
-        \ . "\<Cmd>let s:st = win_getid() == win ? 'same' : 'other'\<CR>\<Esc>", 'xt')
-  call s:check('register window confirmed', s:st, 'same')
-  call s:check('register window lines', [getline(1), getbufline(winbufnr(winnr('#')), 1)],
-        \ ['ab cd関知', ['xy']])
+  call feedkeys("A\<C-j>Ringo \<Cmd>wincmd w\<CR>\<Esc>", 'xt')
+  call s:check('register window', [win_getid() == win, g:goda_skk#enabled,
+        \ getbufline(winbufnr(win), 1), getline(1)], [0, v:false, ['ab cdりんご'], 'xy'])
   only!
   enew!
 

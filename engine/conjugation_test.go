@@ -44,7 +44,7 @@ func TestConjugation(t *testing.T) {
 	} {
 		s := newSim(t, Config{Dictionaries: []Dictionary{conjugationJisyo(t)}, ShowCandidatesCount: new(9)})
 		s.typ(tc.keys)
-		if got := s.preedit(); got != tc.want && !(tc.keys == "KaKu " && s.res.Register != "") {
+		if got := s.preedit(); got != tc.want && !(tc.keys == "KaKu " && s.res.Registering) {
 			t.Errorf("%q: %q, want %q", tc.keys, got, tc.want)
 		}
 	}

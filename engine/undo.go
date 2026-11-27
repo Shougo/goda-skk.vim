@@ -66,6 +66,10 @@ func (c *Context) hasPendingInput() bool {
 
 func (c *Context) recordKakutei(kakutei string, st state) {
 	c.undo.last = nil
+	if c.registering() {
+		// Into the word being registered, not the buffer.
+		return
+	}
 	c.undo.pending = &kakuteiRecord{
 		kakutei: kakutei, state: st, mode: c.mode,
 		vimMode: c.vimMode, bufnr: c.bufnr, lnum: c.lnum,

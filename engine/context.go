@@ -17,12 +17,6 @@ const (
 	ModeAbbrev  = "abbrev"
 )
 
-// registration is a word to register: the prompt, and the conversion.
-type registration struct {
-	prompt string
-	state  state
-}
-
 // candidateRef is a candidate that was confirmed, for purgeCandidate.
 type candidateRef struct {
 	typ       HenkanType
@@ -67,8 +61,9 @@ type Context struct {
 
 	undo undoState
 
-	// register is the registration of a word to ask Vim for.
-	register *registration
+	// regs are the registrations of words, the innermost last
+	// (register.go).
+	regs []*registration
 
 	ctx  context.Context
 	host sdk.Host
@@ -101,6 +96,11 @@ func (c *Context) modeChange(mode string) { c.mode = mode }
 
 // kakutei writes s to the buffer, before the pre-edit.
 func (c *Context) kakutei(s string) {
+	if c.registering() {
+		// The word being registered, not the buffer.
+		c.addRegistered(s)
+		return
+	}
 	// What the handling writes after a kakutei to take back, which is not
 	// part of it.
 	if p := c.undo.pending; p != nil {
@@ -116,12 +116,12 @@ func (c *Context) kakutei(s string) {
 // insert mode (<C-g>u).
 func (c *Context) kakuteiWithUndoPoint(s string) {
 	c.kakutei(s)
-	if *c.cfg.SetUndoPoint && c.vimMode == "i" {
+	if *c.cfg.SetUndoPoint && c.vimMode == "i" && !c.registering() {
 		c.pre.doKakutei("\x07u")
 	}
 }
 
-func (c *Context) text() string { return c.state.text(c.cfg) }
+func (c *Context) text() string { return c.registrationText() + c.state.text(c.cfg) }
 
 // output is the keys to feed for the pre-edit now; the text confirmed in a
 // buffer is remembered (recentText), not that of the command line.

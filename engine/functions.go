@@ -23,6 +23,7 @@ func init() {
 		"cancel":         cancel,
 		"purgeCandidate": purgeCandidate,
 		"pin":            pin,
+		"registerTab":    registerTab,
 		"demote":         demote,
 		// Leaving.
 		"disable": disableFunc,
@@ -316,13 +317,14 @@ func henkanForward(c *Context, _ string) {
 		s.index++
 	}
 	if s.index >= len(s.candidates) {
-		if registerWord(c) {
-			return
-		}
+		// Cancelled, the registration is back to the last candidate, or
+		// to the reading.
 		s.index = old
 		if s.index == -1 {
 			s.kind = stateInput
 		}
+		registerWord(c)
+		return
 	}
 	if s.index >= *c.cfg.ShowCandidatesCount {
 		showCandidates(c)
@@ -423,56 +425,6 @@ func suffix(c *Context, _ string) {
 	henkanPoint(c)
 	acceptResult(c, Rule{Kana: ">"}, "")
 	c.state.affix = affixSuffix
-}
-
-// registerWord asks for the word of the reading when there are no more
-// candidates: Vim asks on the command line (where the input method works
-// too, with a context of its own) and tells it with registerDone. Until
-// then, the conversion stays as it was. In an expression (<C-r>=), whose
-// command line cannot have a prompt in it, the reading is confirmed as it
-// is, with its okurigana (#244 of skkeleton.nvim).
-func registerWord(c *Context) bool {
-	s := &c.state
-	if c.vimMode == "c" && c.cmdtype == "=" {
-		s.kind = stateInput
-		kakutei(c)
-		return true
-	}
-	prompt := "[辞書登録] " + s.henkanFeed
-	if s.mode == modeOkuriAri {
-		prompt += "*" + s.okuriFeed
-	}
-	st := s.clone()
-	c.register = &registration{prompt: prompt + ": ", state: st}
-	return false
-}
-
-// registerDone confirms the word registered, and learns it; "" keeps the
-// conversion as it was.
-func registerDone(c *Context, word string) {
-	r := c.register
-	c.register = nil
-	// The markers of a pre-edit left in the prompt are not the word (#12
-	// of skkeleton.nvim).
-	for _, m := range []string{*c.cfg.MarkerHenkan, *c.cfg.MarkerHenkanSelect} {
-		if m != "" {
-			word = strings.ReplaceAll(word, m, "")
-		}
-	}
-	if r == nil || word == "" {
-		return
-	}
-	c.state = r.state
-	c.state.candidates, c.state.index = []string{word}, 0
-	if t := c.state.trace; t != nil {
-		c.state.trace = &lookupTrace{sources: t.sources, times: t.times,
-			first: t.first, preferred: t.preferred, context: t.context, count: t.count, registered: true}
-	}
-	// Registered even past MaxLearnLength, which kakutei keeps to.
-	c.lib.register(c.state.mode.henkanType(), c.state.word, c.state.okuri(), word)
-	kakutei(c)
-	// Taking it back would only choose the word just registered.
-	c.invalidateKakutei()
 }
 
 // ---------------------------------------------------------------------------
@@ -710,6 +662,11 @@ func zenkaku(c *Context, _ string) {
 
 // disableFunc confirms and turns the input method off.
 func disableFunc(c *Context, _ string) {
+	// In a registration: its ascii mode ("l" is a rule of the kana table).
+	if c.registering() && !c.state.typed() {
+		c.regs[len(c.regs)-1].ascii = true
+		return
+	}
 	kakutei(c)
 	c.state.reset(c.table, false, false)
 	c.disable = true

@@ -110,11 +110,24 @@ otherwise disables it too, as entering another buffer does without leaving
 insert mode (a callback opening a file, as vim-guise does for $EDITOR).
 
 A conversion confirmed is learned in the user dictionary, and comes first
-the next time.  When a reading has no (more) candidates, the word is asked
-for on the command line ("[辞書登録] みかん: "), where the input method works
-too; <CR> registers it, <Esc> or <C-g> cancels.  In an expression
-(|c_CTRL-R_=|), which cannot have the prompt, the reading is confirmed as it
-is, with its okurigana.  The function kakuteiUndo
+the next time.
+                                                           *goda-skk-register*
+When a reading has no (more) candidates, the word is registered in the
+pre-edit itself, as macSKK and AquaSKK do: "▼[登録:みかん]", and the word is
+typed and converted after it as anywhere (a word without candidates in it is
+registered in it too).  Nothing goes into the buffer meanwhile.  With
+nothing being converted in it:
+	<CR> <C-j>	register the word, and confirm it
+	<C-g>		cancel, back to the conversion
+	<BS>		delete a character; on none, cancel
+	l		type the keys as they are ("km/h"); <C-j> goes
+			back to kana
+	<Tab>		complete the conjugation (|goda-skk-conjugation|)
+	<Esc>		cancel all, and leave insert mode
+Leaving the window, or something typed that is not a mapped key (pasted),
+gives the registration up: the reading stays.  In an expression
+(|c_CTRL-R_=|), which has no room for it, the reading is confirmed as it is,
+with its okurigana.  The function kakuteiUndo
 (|goda-skk-key-functions|; map a key to it in Keymaps) takes the last
 conversion back to choosing its candidate, also after typing on along the
 line: the cursor goes back to the conversion, and returns after another
@@ -516,9 +529,10 @@ engine.NewJisyo({path}, {encoding})
 		okurigana may start after the kana the stem ends with
 		too ("TabeRu", "TaBeru" 食べる).  Classical conjugations
 		(@verb-bungo-*) are not converted.
-		Registering a word for a reading with okurigana, <Tab>
-		completes its conjugation ("思" to "思;@verb-5-w", those
-		that take the okurigana typed first): the user
+		Registering a word for a reading with okurigana
+		(|goda-skk-register|), <Tab> completes its conjugation
+		("思" to "思;@verb-5-w", the next one again; those that
+		take the okurigana typed first): the user
 		dictionary has the stem then ("おも /思;@verb-5-w/"),
 		for every okurigana.
 
@@ -968,8 +982,9 @@ DIFFERENCES FROM SKKELETON                                *goda-skk-skkeleton*
   so in the user dictionary (skkeleton.nvim#37).
 - <C-q> in the full-width ASCII mode is half-width katakana with the kana
   table (skkeleton.nvim#40).
-- Leaving the window resets |g:goda_skk#state| too (skkeleton.nvim#15);
-  while a word is registered, the window is not left (skkeleton.nvim#13).
+- Leaving the window resets |g:goda_skk#state| too (skkeleton.nvim#15); a
+  word is registered in the pre-edit, which has no window of its own to
+  leave (skkeleton.nvim#13).
 - A key of no candidate on the page keeps the list (skkeleton.nvim#14).
 - In an expression (|c_CTRL-R_=|) on the command line, a reading without
   candidates is confirmed, not registered (skkeleton.nvim#244); the input

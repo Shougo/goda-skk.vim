@@ -36,7 +36,9 @@ func (p *Plugin) Reading() (Reading, bool) {
 	defer p.mu.Unlock()
 	c := p.c
 	s := &c.state
-	if s.kind != stateInput || s.mode != modeOkuriNasi || c.disable {
+	// Not in a registration: the completion would type into the buffer,
+	// under the pre-edit of the registration.
+	if s.kind != stateInput || s.mode != modeOkuriNasi || c.disable || c.registering() {
 		return Reading{}, false
 	}
 	return Reading{PreEdit: c.pre.current, Kana: s.henkanFeed, Feed: s.feed, VimMode: c.vimMode}, true

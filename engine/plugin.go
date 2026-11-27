@@ -31,9 +31,6 @@ type Plugin struct {
 	// recent is the text confirmed in the buffers.
 	recent   recentText
 	lastMode string
-	// outer are the contexts put aside while Vim asks for a word to
-	// register (registerWord): the keys of the prompt have their own.
-	outer []outerContext
 	// nested are the contexts of the command lines put aside while Vim is
 	// in a command line in them (<C-r>=): the inner one has its own, and
 	// the outer one is back as it was when it is (#246 of skkeleton.nvim).
@@ -115,20 +112,18 @@ func (p *Plugin) Name() string { return PluginName }
 // binary goes with (sdk.ScriptVersioner): goda.vim refuses a binary of
 // another one and says to build it again. Bump it with s:version there when
 // the Vim script and the binary no longer work together.
-const ScriptVersion = 4
+const ScriptVersion = 5
 
 func (p *Plugin) ScriptVersion() int { return ScriptVersion }
 
 func (p *Plugin) Handlers() map[string]sdk.Handler {
 	return map[string]sdk.Handler{
-		"handle":  p.handle,
-		"reset":   p.reset,
-		"preedit": p.preedit,
-		"push":    p.push,
-		"pop":     p.pop,
-
-		"registerCompletions": p.registerCompletions,
-		"reconvertAt":         p.reconvertAt,
+		"handle":      p.handle,
+		"reset":       p.reset,
+		"preedit":     p.preedit,
+		"push":        p.push,
+		"pop":         p.pop,
+		"reconvertAt": p.reconvertAt,
 	}
 }
 
@@ -149,35 +144,6 @@ func (p *Plugin) reconvertAt(_ context.Context, _ sdk.Host, args []any) (any, er
 		return map[string]any{}, nil
 	}
 	return map[string]any{"id": i, "end": len(r.bufferText)}, nil
-}
-
-// registerCompletions returns the completions of the word typed in the
-// prompt of registerWord (args: the text before the cursor): with the
-// conjugations of a conjugation dictionary, for a reading with okurigana
-// ("思" to "思;@verb-5-w", those that take the okurigana typed first).
-func (p *Plugin) registerCompletions(_ context.Context, _ sdk.Host, args []any) (any, error) {
-	p.mu.Lock()
-	defer p.mu.Unlock()
-	text, _ := firstArg(args).(string)
-	if len(p.outer) == 0 {
-		return []string{}, nil
-	}
-	r := p.outer[len(p.outer)-1].c.register
-	if r == nil || r.state.mode != modeOkuriAri {
-		return []string{}, nil
-	}
-	cs := conjugationCompletions(text, r.state.okuriFeed)
-	if cs == nil {
-		cs = []string{}
-	}
-	return cs, nil
-}
-
-func firstArg(args []any) any {
-	if len(args) == 0 {
-		return nil
-	}
-	return args[0]
 }
 
 // Status is what Vim tells with every key: where the input goes and what
@@ -234,9 +200,9 @@ type Result struct {
 	// leaves of it (what else was typed there, a completion that appended
 	// to the reading, say, stays too; #20 of skkeleton.nvim).
 	StaleText string `json:"staleText"`
-	// Register is the prompt of a word to register: Vim asks for it, then
-	// runs registerDone with it.
-	Register string `json:"register"`
+	// Registering: a word is being registered in the pre-edit; Vim maps
+	// <Tab> meanwhile (registerTab).
+	Registering bool `json:"registering"`
 	// CompletionConfirm: Vim chooses the item selected of the completion
 	// (the confirm of g:goda_skk#completion_backend). The keys are not
 	// sent from here: they may have special keys ("\<Cmd>"), whose bytes
@@ -255,7 +221,7 @@ type Result struct {
 }
 
 // handle runs fn ("handleKey", "enable", "disable", "toggle",
-// "registerDone" or the name of a function) for keys, with the status of
+// "reconvert" or the name of a function) for keys, with the status of
 // Vim.
 func (p *Plugin) handle(ctx context.Context, h sdk.Host, params []any) (any, error) {
 	var args struct {
@@ -273,15 +239,6 @@ func (p *Plugin) handle(ctx context.Context, h sdk.Host, params []any) (any, err
 }
 
 func (p *Plugin) run(ctx context.Context, h sdk.Host, fn string, keys []string, st Status, enabled bool) (Result, error) {
-	if fn == "registerDone" {
-		// Back from the prompt: the context that asked.
-		if len(p.outer) == 0 {
-			return Result{}, fmt.Errorf("goda-skk: registerDone without registerWord")
-		}
-		o := p.outer[len(p.outer)-1]
-		p.outer = p.outer[:len(p.outer)-1]
-		p.c, p.lastMode = o.c, o.lastMode
-	}
 	c := p.c
 	c.ctx, c.host = ctx, h
 	c.popup, c.disable, c.reenable = nil, false, false
@@ -309,7 +266,10 @@ func (p *Plugin) run(ctx context.Context, h sdk.Host, fn string, keys []string, 
 		if !resolved {
 			c.invalidateKakutei()
 		}
-		p.stale, p.staleText = c.pre.current, c.state.bareText()
+		p.stale, p.staleText = c.pre.current, c.bareText()
+		// A registration in it is given up too (something typed that is
+		// not a mapped key, pasted).
+		c.regs = nil
 		c.resetState(true, false)
 		c.pre.output("")
 		if st.PumVisible {
@@ -357,15 +317,6 @@ func (p *Plugin) run(ctx context.Context, h sdk.Host, fn string, keys []string, 
 		return p.result(c.output()), nil
 	}
 
-	if fn == "registerDone" {
-		word := ""
-		if len(keys) > 0 {
-			word = keys[0]
-		}
-		registerDone(c, word)
-		return p.result(c.pre.output(c.text())), nil
-	}
-
 	before := c.mode
 	if st.PumVisible && fn == "handleKey" && strings.Join(keys, "") == "<cr>" &&
 		st.Selected >= 0 && p.cfg.EggLikeNewline && st.CanConfirm {
@@ -381,9 +332,6 @@ func (p *Plugin) run(ctx context.Context, h sdk.Host, fn string, keys []string, 
 	if fn == "handleKey" {
 		for _, k := range keys {
 			handleKey(c, k)
-			if c.register != nil {
-				break
-			}
 		}
 	} else {
 		f := functions[fn]
@@ -397,7 +345,7 @@ func (p *Plugin) run(ctx context.Context, h sdk.Host, fn string, keys []string, 
 			f(c, "")
 		}
 	}
-	if s := &c.state; s.kind == stateHenkan && len(c.popup) == 0 && c.register == nil {
+	if s := &c.state; s.kind == stateHenkan && len(c.popup) == 0 {
 		// Still choosing (a key not of the page, say): the list stays
 		// (#14 of skkeleton.nvim). Or the annotation of the candidate
 		// shown one by one.
@@ -413,16 +361,11 @@ func (p *Plugin) run(ctx context.Context, h sdk.Host, fn string, keys []string, 
 		out = " \b"
 	}
 	res := p.result(out)
-	if st.PumVisible && reading && c.register == nil &&
+	if st.PumVisible && reading &&
 		c.state.kind == stateInput && c.state.mode == modeDirect {
 		res.CompletionClose = true
 	}
-	if r := c.register; r != nil {
-		// Vim asks for the word next; meanwhile, keys go to a new context.
-		res.Register, res.Popup = r.prompt, nil
-		p.outer = append(p.outer, outerContext{c, p.lastMode})
-		p.c = p.newContext()
-	}
+	res.Registering = c.registering()
 	return res, nil
 }
 
@@ -442,7 +385,7 @@ func (p *Plugin) result(keys string) Result {
 	if c.hasPendingInput() {
 		restore = nil
 	}
-	pre, preText := c.pre.current, c.state.bareText()
+	pre, preText := c.pre.current, c.bareText()
 	if c.state.kind == stateEscape || pre == "" {
 		pre, preText = "", ""
 	}
@@ -468,7 +411,7 @@ func (p *Plugin) result(keys string) Result {
 func (p *Plugin) reset(context.Context, sdk.Host, []any) (any, error) {
 	p.mu.Lock()
 	defer p.mu.Unlock()
-	p.c, p.outer, p.nested = p.newContext(), nil, nil
+	p.c, p.nested = p.newContext(), nil
 	return nil, nil
 }
 

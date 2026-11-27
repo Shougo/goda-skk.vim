@@ -103,6 +103,12 @@ func keyFunction(c *Context, key string) string {
 
 func handleKey(c *Context, key string) {
 	key = normalizeKey(key)
+	if key == "<tab>" && c.registering() {
+		// Mapped by Vim only while registering (Result.Registering): no
+		// key of the keymaps, which Vim maps all the time.
+		registerTab(c, key)
+		return
+	}
 	var km keymap
 	switch c.state.kind {
 	case stateInput:
@@ -121,6 +127,9 @@ func handleKey(c *Context, key string) {
 		// "z "): before what the key is mapped to (#42 of
 		// skkeleton.nvim).
 		fn = "kanaInput"
+	}
+	if registerKey(c, fn, key) {
+		return
 	}
 	functions[fn](c, key)
 }

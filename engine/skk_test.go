@@ -74,8 +74,12 @@ type sim struct {
 	confirm int
 	// after is the text after the cursor.
 	after string
-	// register answers the prompt of registerWord.
-	register func(prompt string) string
+	// register answers a registration (its pre-edit given): the word is
+	// typed in it and confirmed, "" cancels it. With inline, the keys go
+	// on into it instead.
+	register  func(preEdit string) string
+	inline    bool
+	answering bool
 	// pum: the popup menu of a completion is shown, with the item selected
 	// (-1: none).
 	pum      bool
@@ -190,13 +194,23 @@ func (s *sim) call(fn string, keys ...string) Result {
 		s.on = false
 	}
 	s.res = res
-	if res.Register != "" && fn != "registerDone" {
-		// As Vim does: ask, and tell.
+	if res.Registering && !s.inline && !s.answering {
+		// The word typed in the registration, then <C-j>; none cancels it.
 		word := ""
 		if s.register != nil {
-			word = s.register(res.Register)
+			word = s.register(res.PreEdit)
 		}
-		return s.call("registerDone", word)
+		s.answering = true
+		defer func() { s.answering = false }()
+		if word == "" {
+			return s.call("handleKey", "<c-g>")
+		}
+		// As it is: in its ascii mode.
+		s.call("handleKey", "l")
+		for _, r := range word {
+			s.call("handleKey", string(r))
+		}
+		return s.call("handleKey", "<cr>")
 	}
 	return res
 }
@@ -798,44 +812,98 @@ func TestMarkersAndRules(t *testing.T) {
 }
 
 func TestRegisterWord(t *testing.T) {
+	type step struct{ keys, line string }
+	for _, tc := range []struct {
+		name  string
+		steps []step
+	}{
+		{"in the pre-edit, converted as anywhere", []step{
+			{"Mikan ", "▼[登録:みかん]"},
+			{"Kanji ", "▼[登録:みかん]▼漢字"},
+			{"<c-j>", "▼[登録:みかん]漢字"},
+			{"<cr>", "漢字"},
+			// Learned.
+			{"Mikan ", "漢字▼漢字"},
+			// Past the last candidate, and cancelled: back to it.
+			{" ", "漢字▼[登録:みかん]"},
+			{"<c-g>", "漢字▼漢字"},
+		}},
+		{"okurigana", []step{
+			{"TabeRu", "▼[登録:たべ*る]"},
+			{"l食<cr>", "食る"},
+		}},
+		{"nested", []step{
+			{"Mikan Ringo ", "▼[登録:みかん]▼[登録:りんご]"},
+			{"l林檎<cr>", "▼[登録:みかん]林檎"},
+			{"<cr>", "林檎"},
+			{"Ringo ", "林檎▼林檎"},
+		}},
+		{"<BS>, then cancelled", []step{
+			{"Mikan lab", "▼[登録:みかん]ab"},
+			{"<bs>", "▼[登録:みかん]a"},
+			{"<bs><bs>", "▽みかん"},
+		}},
+		{"ascii, back to kana", []step{
+			{"Zisoku lkm/h<c-j>a", "▼[登録:じそく]km/hあ"},
+			{"<cr>", "km/hあ"},
+		}},
+		{"<Esc> leaves", []step{
+			{"Mikan Kana", "▼[登録:みかん]▽かな"},
+			{"<c-g><esc>", "みかん"},
+		}},
+	} {
+		s := newSim(t, Config{})
+		s.inline = true
+		for _, st := range tc.steps {
+			s.typ(st.keys)
+			if s.line != st.line {
+				t.Errorf("%s: %q: %q, want %q", tc.name, st.keys, s.line, st.line)
+			}
+		}
+	}
+	// The registration is told while it goes on.
 	s := newSim(t, Config{})
-	// The prompt has an editor of its own: what is typed there is handled
-	// meanwhile.
-	s.register = func(prompt string) string {
-		if prompt != "[辞書登録] みかん: " {
-			t.Errorf("prompt: %q", prompt)
-		}
-		inner := &sim{t: t, p: s.p, mode: "c"}
-		inner.call("enable")
-		inner.typ("Kanji <c-j>")
-		inner.call("disable")
-		return inner.line
+	s.inline = true
+	if s.typ("Mikan "); !s.res.Registering {
+		t.Error("not registering")
 	}
-	s.typ("Mikan ")
-	if s.line != "漢字" || s.res.Phase != "input" {
-		t.Errorf("register: %q %+v", s.line, s.res)
+	if s.typ("<c-g>"); s.res.Registering {
+		t.Error("still registering")
 	}
-	s.register = nil
-	s.typ("Mikan ")
-	if s.line != "漢字▼漢字" {
-		t.Errorf("learned: %q", s.line)
+}
+
+func TestRegisterTab(t *testing.T) {
+	// <Tab> completes the conjugation of a word for a reading with
+	// okurigana, the next one again.
+	s := newSim(t, Config{})
+	s.inline = true
+	s.typ("OmoU")
+	s.typ("l思<c-j><tab>")
+	if s.line != "▼[登録:おも*う]思;@verb-5-w" || !slices.Equal(s.res.Popup, []string{"思;@verb-5-w"}) {
+		t.Errorf("tab: %q %q", s.line, s.res.Popup)
 	}
-	// Past the last candidate, and cancelled: back to it.
-	s.typ(" ")
-	if s.line != "漢字▼漢字" {
-		t.Errorf("cancelled: %q", s.line)
+	s.typ("<tab>")
+	if s.line != "▼[登録:おも*う]思;@verb-5-w-tou" {
+		t.Errorf("tab again: %q", s.line)
 	}
-	s.typ("<c-g>")
-	// Okurigana.
-	s.register = func(prompt string) string {
-		if prompt != "[辞書登録] たべ*る: " {
-			t.Errorf("prompt: %q", prompt)
-		}
-		return "食"
+	s.typ("<tab>")
+	for range len(conjugationOrder) - 2 {
+		s.typ("<tab>")
 	}
-	s.typ("TabeRu")
-	if s.line != "漢字食る" {
-		t.Errorf("okuri: %q", s.line)
+	if s.line != "▼[登録:おも*う]思;@verb-5-w" {
+		t.Errorf("around: %q", s.line)
+	}
+	s.typ("<cr>")
+	if s.line != "思う" {
+		t.Errorf("registered: %q", s.line)
+	}
+	if lines := readLines(t, s.p.cfg.UserDictionary); !slices.Contains(lines, "おも /思;@verb-5-w/") {
+		t.Errorf("user dictionary: %q", lines)
+	}
+	// Not for a reading without okurigana.
+	s.typ("Mikan l蜜柑<c-j><tab>")
+	if s.line != "思う▼[登録:みかん]蜜柑" {
+		t.Errorf("okuri-nasi: %q", s.line)
 	}
 }
 
@@ -853,7 +921,7 @@ func TestNoCandidateInExpression(t *testing.T) {
 		return ""
 	}
 	s.typ("Mikan ")
-	if s.line != "みかん" || s.res.Phase != "input" || s.res.Register != "" {
+	if s.line != "みかん" || s.res.Phase != "input" || s.res.Registering {
 		t.Errorf("no candidate: %q %+v", s.line, s.res)
 	}
 	s.typ("TabeRu")
@@ -978,16 +1046,6 @@ func TestStalePreEdit(t *testing.T) {
 	}
 	if res = s.call("handleKey", "u"); res.Stale != "" {
 		t.Errorf("stale again: %+v", res)
-	}
-
-	s = newSim(t, Config{})
-	s.register = func(string) string { return "▽ぬ" }
-	s.typ("Nu ")
-	if s.line != "ぬ" {
-		t.Errorf("registered: %q", s.line)
-	}
-	if got, _ := s.p.lib.user.Lookup(context.Background(), OkuriNasi, "ぬ"); !slices.Equal(got, []string{"ぬ"}) {
-		t.Errorf("learned %q", got)
 	}
 }
 

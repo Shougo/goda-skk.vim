@@ -9,7 +9,7 @@
 " The version of this Vim script that the binary goes with (ScriptVersion of
 " its Go side): goda.vim refuses a binary of another one, and says to build
 " it again. Bumped with it when they no longer work together.
-let s:version = #{version: 4, module: 'github.com/Shougo/goda-skk.vim'}
+let s:version = #{version: 5, module: 'github.com/Shougo/goda-skk.vim'}
 
 let g:goda_skk#enabled = v:false
 let g:goda_skk#mode = ''
@@ -152,11 +152,7 @@ function! goda_skk#handle(func, keys = []) abort
   let s:popup = r.popup
   let s:pre_edit = r.preEdit
   let s:pre_edit_text = get(r, 'preEditText', '')
-  if r.register !=# ''
-    " After the keys: ask for the word to register.
-    let s:register_prompt = r.register
-    let keys .= "\<Cmd>call goda_skk#_register_word()\<CR>"
-  endif
+  call s:register_tab(get(r, 'registering', v:false))
   if r.restore isnot v:null
     " After the text landed: where kakuteiUndo left from.
     let keys .= printf("\<Cmd>call goda_skk#_restore_point(%d, %d)\<CR>",
@@ -304,7 +300,6 @@ function! s:nested_enter() abort
   " (Leaving the command line resets the input: enabled there, it is still
   " the outer one.)
   if !g:goda_skk#enabled || get(s:, 'enabled_mode', '') !=# 'c'
-        \ || get(s:, 'registering', 0) > 0
     if !empty(s:nested)
       call add(s:nested, {})
     endif
@@ -444,72 +439,6 @@ function! goda_skk#_pass(i) abort
   endif
 endfunction
 
-" The registration of a word: ask for it on the command line, where the
-" input method is enabled, and tell the plugin ('' when cancelled). The
-" input method of where it was asked from is put aside meanwhile.
-function! goda_skk#_register_word() abort
-  let outer = #{enabled: g:goda_skk#enabled, mode: g:goda_skk#mode,
-        \ state: g:goda_skk#state, enabled_mode: get(s:, 'enabled_mode', 'i'),
-        \ popup: get(s:, 'popup', []), pre_edit: get(s:, 'pre_edit', ''),
-        \ pre_edit_text: get(s:, 'pre_edit_text', '')}
-  call goda_skk#popup#close()
-  let g:goda_skk#enabled = v:false
-  augroup goda_skk_enabled
-    autocmd!
-    autocmd CmdlineEnter * ++once call goda_skk#enable()
-  augroup END
-  " The prompt belongs to the window: another window is not entered
-  " meanwhile (#13 of skkeleton.nvim). Registrations nest.
-  let s:registering = get(s:, 'registering', 0) + 1
-  if s:registering == 1
-    let s:register_win = win_getid()
-    augroup goda_skk_register
-      autocmd!
-      autocmd WinEnter * call s:register_back()
-    augroup END
-  endif
-  " The cursor stays where it is at the end of the line.
-  let virtualedit = &l:virtualedit
-  setlocal virtualedit=all
-  let word = ''
-  try
-    let word = input(s:register_prompt, '',
-          \ 'customlist,goda_skk#_register_completions')
-  catch /^Vim:Interrupt$/
-  finally
-    let s:registering -= 1
-    if s:registering == 0
-      augroup goda_skk_register
-        autocmd!
-      augroup END
-      call s:register_back()
-    endif
-    if g:goda_skk#enabled
-      call s:disable()
-    endif
-    let &l:virtualedit = virtualedit
-    let g:goda_skk#enabled = outer.enabled
-    let g:goda_skk#state = outer.state
-    let s:enabled_mode = outer.enabled_mode
-    let [s:popup, s:pre_edit, s:pre_edit_text] =
-          \ [outer.popup, outer.pre_edit, outer.pre_edit_text]
-    if outer.enabled
-      call s:autocmds()
-      " What the prompt's disabling undid (the sources of a completion,
-      " say) is done again.
-      call s:doautocmd('goda-skk-enable-pre')
-      call s:doautocmd('goda-skk-enable-post')
-    else
-      augroup goda_skk_enabled
-        autocmd!
-      augroup END
-    endif
-    call s:set_mode(outer.mode)
-    echo '' | redraw
-  endtry
-  call goda_skk#handle('registerDone', [word])
-endfunction
-
 " Reconversion (Normal mode): the conversion under the cursor, confirmed in
 " insert mode before, goes back to choosing its candidates, as kakuteiUndo
 " does right after it. Insert mode is entered after its text.
@@ -533,16 +462,20 @@ function! goda_skk#reconvert() abort
         \ 'n')
 endfunction
 
-" The completions of the word to register: with the conjugations of a
-" conjugation dictionary, for a reading with okurigana (<Tab> after "思").
-function! goda_skk#_register_completions(arglead, cmdline, pos) abort
-  return goda#request('skk', 'registerCompletions',
-        \ strpart(a:cmdline, 0, a:pos))
-endfunction
-
-function! s:register_back() abort
-  if win_getid() != s:register_win && win_id2win(s:register_win) > 0
-    call win_gotoid(s:register_win)
+" <Tab> completes the word being registered in the pre-edit (registerTab of
+" the plugin): mapped only meanwhile, as it is the completion's otherwise.
+function! s:register_tab(on) abort
+  let mode = get(s:, 'enabled_mode', 'i')
+  if a:on && !get(s:, 'tab_mapped', v:false)
+    let s:tab_saved = maparg('<Tab>', mode, 0, 1)
+    execute mode . "noremap <buffer> <nowait> <Tab> <Cmd>call goda_skk#handle('registerTab')<CR>"
+    let s:tab_mapped = v:true
+  elseif !a:on && get(s:, 'tab_mapped', v:false)
+    let s:tab_mapped = v:false
+    silent! execute mode . 'unmap <buffer> <Tab>'
+    if get(s:tab_saved, 'buffer', 0)
+      call mapset(mode, 0, s:tab_saved)
+    endif
   endif
 endfunction
 
@@ -642,6 +575,8 @@ function! s:disable(reenable = v:false) abort
     return
   endif
   call s:doautocmd('goda-skk-disable-pre')
+  " The buffer mappings go back as they were, <Tab> of a registration too.
+  let s:tab_mapped = v:false
   call goda_skk#popup#close()
   call goda_skk#highlight#clear()
   call s:restore(get(s:, 'enabled_mode', 'i'), get(s:, 'enabled_buf', bufnr('%')))
@@ -720,8 +655,7 @@ endfunction
 " of leaving may come before (":tab drop" has only TabLeave), and the
 " mappings are in the buffer left.
 function! s:buf_enter() abort
-  if bufnr('%') == get(s:, 'enabled_buf', bufnr('%'))
-        \ || mode() =~# '^c' || get(s:, 'registering', 0) > 0
+  if bufnr('%') == get(s:, 'enabled_buf', bufnr('%')) || mode() =~# '^c'
     return
   endif
   call s:reset()
@@ -748,10 +682,6 @@ function! s:restore(mode, bufnr) abort
 endfunction
 
 function! s:reset() abort
-  if get(s:, 'registering', 0) > 0
-    " The window the prompt belongs to is entered again.
-    return
-  endif
   " The outer command lines have no input to go on with either.
   call map(s:nested, '{}')
   if goda#is_running('skk')
