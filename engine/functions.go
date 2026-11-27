@@ -22,6 +22,8 @@ func init() {
 		"newline":        newline,
 		"cancel":         cancel,
 		"purgeCandidate": purgeCandidate,
+		"pin":            pin,
+		"demote":         demote,
 		// Leaving.
 		"disable": disableFunc,
 		"escape":  escape,
@@ -544,6 +546,41 @@ func cancel(c *Context, _ string) {
 
 // purgeCandidate removes the candidate (the one chosen, or the last one
 // confirmed) from the user dictionary, after asking.
+// pin puts the candidate chosen (or the one confirmed last) first for its
+// reading from now on, whatever is learned; again, it takes that back.
+func pin(c *Context, _ string) {
+	setOrder(c, orderPin)
+}
+
+// demote puts the candidate chosen (or the one confirmed last) last for its
+// reading from now on; again, it takes that back.
+func demote(c *Context, _ string) {
+	setOrder(c, orderDemote)
+}
+
+func setOrder(c *Context, order string) {
+	s := &c.state
+	var ref candidateRef
+	switch s.kind {
+	case stateInput:
+		ref = c.lastCandidate
+	case stateHenkan:
+		if s.index < 0 || s.index >= len(s.candidates) {
+			return
+		}
+		ref = candidateRef{s.mode.henkanType(), s.word, s.candidates[s.index]}
+	}
+	if ref.word == "" || c.lib.order == nil {
+		return
+	}
+	w := candidateWord(ref.candidate)
+	if c.lib.order.toggle(ref.typ, ref.word, w, order) {
+		c.popup = []string{order + ": " + candidateText(ref.candidate, affixNone)}
+	} else {
+		c.popup = []string{"un" + order + ": " + candidateText(ref.candidate, affixNone)}
+	}
+}
+
 func purgeCandidate(c *Context, _ string) {
 	s := &c.state
 	var ref candidateRef

@@ -383,6 +383,12 @@ UserDictionary		The file conversions are learned in
 			readings were learned, the latest first; the
 			completion is in this order.
 
+OrderFile		The candidates pinned and demoted (the key functions
+			pin and demote, |goda-skk-key-functions|), in JSON
+			Lines (UserDictionary with ".order"; "-" for none):
+			apart from the user dictionary, which other SKK
+			implementations read too.
+
 Keymaps			Key functions by state: {"input": {"<c-l>":
 			"zenkaku"}, "henkan": {...}}; "" removes a key.
 
@@ -845,6 +851,21 @@ newline		Confirm and type a new line (<CR>).
 cancel		Cancel the conversion (<C-g>).
 
 purgeCandidate	Remove the candidate from the user dictionary ("X").
+
+pin		Put the candidate chosen (or the one confirmed last)
+		first for its reading from now on, whatever is learned
+		after; again, take that back.  For a word chosen most of
+		the time, another one some time (見た, 観た): learning would
+		put the other one first after it.  In OrderFile.
+		No key by default: >go
+			Keymaps: map[string]map[string]string{
+				"henkan": {"<c-p>": "pin", "<c-d>": "demote"},
+			},
+<
+demote		Put the candidate chosen (or the one confirmed last) last
+		for its reading from now on; again, take that back.  For a
+		word that is not to come before the others, which purging
+		would take away.
 
 disable		Confirm and disable ("l").
 

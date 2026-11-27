@@ -68,6 +68,10 @@ func New(cfg Config) (*Plugin, error) {
 		lib.user = NewUserDictionary(cfg.UserDictionary)
 		lib.user.logf = log.Printf
 	}
+	if cfg.OrderFile != "" && cfg.OrderFile != "-" {
+		lib.order = newCandidateOrder(cfg.OrderFile)
+		lib.order.logf = log.Printf
+	}
 	for _, d := range cfg.Dictionaries {
 		d, _ := unwrap(d)
 		if in, ok := d.(Initializer); ok {

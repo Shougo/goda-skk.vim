@@ -22,6 +22,10 @@ type Config struct {
 	// (default "~/.goda-skk-jisyo"; "-" for none). It is read again when it
 	// changed, and written after every change.
 	UserDictionary string
+	// OrderFile keeps the candidates pinned and demoted (the key functions
+	// pin and demote), in JSON Lines (default: UserDictionary with
+	// ".order"; "-" for none).
+	OrderFile string
 
 	// Keymaps change what keys do: by state ("input" while typing,
 	// "henkan" while choosing a candidate), the key in lower-case
@@ -107,6 +111,9 @@ func (c Config) fill() (Config, error) {
 	}
 	if c.UserDictionary == "" {
 		c.UserDictionary = Defaults.UserDictionary
+	}
+	if c.OrderFile == "" && c.UserDictionary != "-" {
+		c.OrderFile = c.UserDictionary + ".order"
 	}
 	if c.MarkerHenkan == nil {
 		c.MarkerHenkan = new(*Defaults.MarkerHenkan)

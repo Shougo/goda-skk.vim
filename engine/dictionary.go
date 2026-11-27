@@ -161,6 +161,8 @@ type library struct {
 	maxLearn int
 	// sahen: Config.SahenConvert.
 	sahen bool
+	// order: the candidates pinned and demoted (Config.OrderFile).
+	order *candidateOrder
 	// tracing: lookupOkuri keeps trace, what it found (Config.ConvertLog).
 	tracing bool
 	trace   *lookupTrace
@@ -396,6 +398,9 @@ func (l *library) lookupWith(ctx context.Context, typ HenkanType, word, okuri st
 		copy(out[1:i+1], out[:i])
 		out[0] = c
 	}
+	// Pinned and demoted, whatever the dictionaries, the order learned and
+	// Prefer say.
+	out = l.order.apply(typ, word, out)
 	var unlearned map[string]bool
 	for _, c := range out {
 		if w := candidateWord(c); !learned[w] {
@@ -477,6 +482,9 @@ func (l *library) complete(ctx context.Context, prefixes []string) []Entry {
 	// The readings of stems only (a conjugation dictionary) complete
 	// nothing.
 	out = slices.DeleteFunc(out, func(e Entry) bool { return len(e.Candidates) == 0 })
+	for i := range out {
+		out[i].Candidates = l.order.apply(OkuriNasi, out[i].Word, out[i].Candidates)
+	}
 	slices.SortStableFunc(out, func(a, b Entry) int { return strings.Compare(a.Word, b.Word) })
 	return out
 }
