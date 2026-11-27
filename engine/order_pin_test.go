@@ -3,6 +3,7 @@ package engine
 import (
 	"context"
 	"slices"
+	"strings"
 	"testing"
 )
 
@@ -59,6 +60,29 @@ func TestPinDemote(t *testing.T) {
 	o := newCandidateOrder(s.p.cfg.OrderFile)
 	if got := o.apply(OkuriNasi, "かんじ", []string{"漢字", "感じ", "幹事"}); !slices.Equal(got, []string{"感じ", "幹事", "漢字"}) {
 		t.Errorf("read again: %q", got)
+	}
+
+	// As vim-caskk: "p" and "P" while choosing.
+	s = newSim(t, Config{Dictionaries: []Dictionary{dict},
+		Keymaps: map[string]map[string]string{"henkan": {"p": "pin", "P": "demote"}}})
+	for _, st := range []struct {
+		keys, preedit string
+		popup         []string
+	}{
+		{"Kanji p", "▼漢字", []string{"pin: 漢字"}},
+		{" P", "▼感じ", []string{"demote: 感じ"}},
+		{"<c-j>Kanji ", "▼漢字", nil},
+		{"  ", "▼感じ", nil},
+		// Out of a conversion, "p" is typed.
+		{"<c-j>pa", "", nil},
+	} {
+		s.typ(st.keys)
+		if s.preedit() != st.preedit || !slices.Equal(s.res.Popup, st.popup) {
+			t.Errorf("%q: pre-edit %q popup %q, want %q %q", st.keys, s.preedit(), s.res.Popup, st.preedit, st.popup)
+		}
+	}
+	if !strings.HasSuffix(s.line, "感じぱ") {
+		t.Errorf("line %q", s.line)
 	}
 
 	// No file: nothing to pin.
