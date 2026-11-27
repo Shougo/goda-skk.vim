@@ -473,7 +473,8 @@ function! goda_skk#_register_word() abort
   setlocal virtualedit=all
   let word = ''
   try
-    let word = input(s:register_prompt)
+    let word = input(s:register_prompt, '',
+          \ 'customlist,goda_skk#_register_completions')
   catch /^Vim:Interrupt$/
   finally
     let s:registering -= 1
@@ -507,6 +508,13 @@ function! goda_skk#_register_word() abort
     echo '' | redraw
   endtry
   call goda_skk#handle('registerDone', [word])
+endfunction
+
+" The completions of the word to register: with the conjugations of a
+" conjugation dictionary, for a reading with okurigana (<Tab> after "思").
+function! goda_skk#_register_completions(arglead, cmdline, pos) abort
+  return goda#request('skk', 'registerCompletions',
+        \ strpart(a:cmdline, 0, a:pos))
 endfunction
 
 function! s:register_back() abort

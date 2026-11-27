@@ -121,7 +121,38 @@ func (p *Plugin) Handlers() map[string]sdk.Handler {
 		"preedit": p.preedit,
 		"push":    p.push,
 		"pop":     p.pop,
+
+		"registerCompletions": p.registerCompletions,
 	}
+}
+
+// registerCompletions returns the completions of the word typed in the
+// prompt of registerWord (args: the text before the cursor): with the
+// conjugations of a conjugation dictionary, for a reading with okurigana
+// ("思" to "思;@verb-5-w", those that take the okurigana typed first).
+func (p *Plugin) registerCompletions(_ context.Context, _ sdk.Host, args []any) (any, error) {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	text, _ := firstArg(args).(string)
+	if len(p.outer) == 0 {
+		return []string{}, nil
+	}
+	r := p.outer[len(p.outer)-1].c.register
+	if r == nil || r.state.mode != modeOkuriAri {
+		return []string{}, nil
+	}
+	cs := conjugationCompletions(text, r.state.okuriFeed)
+	if cs == nil {
+		cs = []string{}
+	}
+	return cs, nil
+}
+
+func firstArg(args []any) any {
+	if len(args) == 0 {
+		return nil
+	}
+	return args[0]
 }
 
 // Status is what Vim tells with every key: where the input goes and what

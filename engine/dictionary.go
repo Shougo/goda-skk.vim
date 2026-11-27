@@ -283,6 +283,11 @@ func (l *library) lookupWith(ctx context.Context, typ HenkanType, word, okuri st
 			// As the user dictionary writes it: the same candidate of
 			// another dictionary is the same.
 			c = normalizeCandidate(c)
+			if _, ok := stemTag(c); ok && typ == OkuriNasi {
+				// A stem of a conjugation dictionary: no word of its
+				// own (lookupConjugated).
+				continue
+			}
 			w := candidateWord(c)
 			if trace != nil && !slices.Contains(trace.sources[w], name) {
 				trace.sources[w] = append(trace.sources[w], name)
@@ -379,6 +384,10 @@ func (l *library) lookupWith(ctx context.Context, typ HenkanType, word, okuri st
 		name = "sahen"
 		add(l.lookupSahen(ctx, stem), false)
 	}
+	if typ == OkuriAri && okuri != "" {
+		name = "conjugation"
+		add(l.lookupConjugated(ctx, word, okuri), false)
+	}
 	if i, ok := seen[preferred]; ok && i > 0 {
 		if trace != nil {
 			trace.first, trace.preferred = candidateWord(out[0]), preferred
@@ -436,6 +445,9 @@ func (l *library) complete(ctx context.Context, prefixes []string) []Entry {
 				}
 				for _, c := range e.Candidates {
 					c = normalizeCandidate(c)
+					if _, ok := stemTag(c); ok {
+						continue
+					}
 					k := [2]string{e.Word, candidateWord(c)}
 					if !opt.noLearn {
 						learned[k] = true
@@ -462,6 +474,9 @@ func (l *library) complete(ctx context.Context, prefixes []string) []Entry {
 		}
 		l.remember(OkuriNasi, e.Word, unlearned, false)
 	}
+	// The readings of stems only (a conjugation dictionary) complete
+	// nothing.
+	out = slices.DeleteFunc(out, func(e Entry) bool { return len(e.Candidates) == 0 })
 	slices.SortStableFunc(out, func(a, b Entry) int { return strings.Compare(a.Word, b.Word) })
 	return out
 }
@@ -490,7 +505,16 @@ func (l *library) learn(typ HenkanType, word, okuri, candidate string) {
 // the length of word: a word registered is asked for.
 func (l *library) register(typ HenkanType, word, okuri, candidate string) {
 	if l.user != nil && candidate != "" {
-		l.user.register(typ, word, okuri, normalizeCandidate(candidate))
+		candidate = normalizeCandidate(candidate)
+		if _, ok := stemTag(candidate); ok {
+			// With its conjugation ("思;@verb-5-w"): the stem for every
+			// okurigana, and the word for this one.
+			if stem, written, ok := conjugationStem(word, okuri, candidate); ok && typ == OkuriAri {
+				l.user.Register(OkuriNasi, stem, written)
+			}
+			candidate = candidateWord(candidate)
+		}
+		l.user.register(typ, word, okuri, candidate)
 	}
 }
 
@@ -530,7 +554,12 @@ func (l *library) lookupSahen(ctx context.Context, stem string) []string {
 		}
 		cs, err := d.Lookup(ctx, OkuriNasi, stem)
 		l.report(err)
-		out = append(out, cs...)
+		for _, c := range cs {
+			// The stems of verbs have their own conversion.
+			if _, ok := stemTag(c); !ok {
+				out = append(out, c)
+			}
+		}
 	}
 	return out
 }

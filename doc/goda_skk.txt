@@ -489,6 +489,23 @@ engine.NewJisyo({path}, {encoding})
 		when the binary starts.  {encoding}: "utf-8", "euc-jp", or ""
 		to detect them.
 
+                                                    *goda-skk-conjugation*
+		A conjugation dictionary (skk-verb-adjective-dictionary
+		of vim-caskk) has the stems of verbs and adjectives
+		without okurigana, their conjugation as the annotation: >
+	か /書;@verb-5-k/買;@verb-5-w/勝;@verb-5-t/
+<		They are no words of their own: a reading with okurigana
+		converts with the stems that take the okurigana typed
+		("KaKu" 書く, "KaTta" 買った and 勝った, not 書).  The
+		okurigana may start after the kana the stem ends with
+		too ("TabeRu", "TaBeru" 食べる).  Classical conjugations
+		(@verb-bungo-*) are not converted.
+		Registering a word for a reading with okurigana, <Tab>
+		completes its conjugation ("思" to "思;@verb-5-w", those
+		that take the okurigana typed first): the user
+		dictionary has the stem then ("おも /思;@verb-5-w/"),
+		for every okurigana.
+
 skkserv.New({params})                                   *goda-skk-skkserv*
 		An SKK server (skkserv, yaskkserv2, ...), package
 		github.com/Shougo/goda-skk.vim/dictionary/skkserv; as

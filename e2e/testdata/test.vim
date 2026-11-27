@@ -109,6 +109,12 @@ function! s:run() abort
   call s:check('register cancelled', s:type("\<C-j>Ringo \<Esc>a"), ['りんごあ'])
   call s:check('register <C-g>', s:type("\<C-j>Ringo \<C-g>a"), ['りんごあ'])
   call s:check('register maps', maparg('a', 'c'), '')
+  " A verb registered with its conjugation (<Tab> completes it): its stem
+  " takes the other okurigana.
+  call s:check('register conjugation', s:type("\<C-j>OmoU思\<Tab>\<CR>"), ['思う'])
+  call s:check('registered stem', readfile($GODA_SKK_USER_JISYO)->filter('v:val =~# "^おも "'),
+        \ ['おも /思;@verb-5-w/'])
+  call s:check('registered conjugation', s:type("\<C-j>OmoWanai\<C-j>"), ['思わない'])
   let s:events = []
   call s:type("\<C-j>Suika \<CR>")
   call s:check('register events', s:events, ['enable', 'enable', 'disable', 'enable', 'disable'])
